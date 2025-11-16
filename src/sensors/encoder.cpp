@@ -6,6 +6,9 @@ namespace sensors::encoder
 {
     AS5600 magEnc(I2C_ADDRESS_AS5600);
     static TwoWire magI2C = TwoWire(0);
+    static TaskHandle_t encoderTaskHandle = NULL;
+
+    static hw_timer_t* encoderTimer = NULL;
 
 #ifdef LOG_ENCODER
     // circular logging buffer
@@ -18,6 +21,15 @@ namespace sensors::encoder
     static TaskHandle_t logTaskHandle = NULL;
 #endif
 
+    void IRAM_ATTR onEncoderTimer() {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        // notify the encoder task to run
+        vTaskNotifyGiveFromISR(encoderTaskHandle, &xHigherPriorityTaskWoken);
+        if (xHigherPriorityTaskWoken == pdTRUE) {
+            portYIELD_FROM_ISR();
+        }
+    }
+
     void initEncoder()
     {
         magI2C.begin(PIN_ENC_SDA, PIN_ENC_SCL);
@@ -25,6 +37,7 @@ namespace sensors::encoder
         
         // confirm I2C is working
         magI2C.beginTransmission(I2C_ADDRESS_AS5600);
+        delay(100);
         uint8_t error = magI2C.endTransmission();
         if (error != 0) {
             Serial.println("[Encoder]: ERROR - Cannot communicate with AS5600!");
@@ -32,10 +45,18 @@ namespace sensors::encoder
         }
         
         // start freertos tasks
-        xTaskCreate(encoderTask, "EncoderTask", 4096, NULL, 1, NULL);
+        xTaskCreate(encoderTask, "EncoderTask", 4096, NULL, 3, &encoderTaskHandle);
 #ifdef LOG_ENCODER
         xTaskCreate(encoderLoggerTask, "LogTask", 4096, NULL, 1, &logTaskHandle);
 #endif
+
+
+        // create timer to trigger tasks
+        Serial.println("[Encoder]: Setting up timer");
+        encoderTimer = timerBegin(1000000); // 1 MHz timer
+        timerAttachInterrupt(encoderTimer, &onEncoderTimer);
+        timerAlarm(encoderTimer, 1000, true, 0); // 1000 Hz alarm, auto-reload
+        Serial.println("[Encoder]: Encoder initialized.");
     }
 
     void encoderTask(void *pvParameters)
@@ -54,11 +75,9 @@ namespace sensors::encoder
         AS5600Conf regs = magEnc.readConf();
         Serial.println("[Encoder]: SF = " + String(regs.sf, BIN) + " FTH = " + String(regs.fth, BIN));
 
-        // poll the encoder at 1000 hz (good luck freertos scheduler)
-        TickType_t xLastWakeTime = xTaskGetTickCount();
-        const TickType_t xFrequency = pdMS_TO_TICKS(1); // 1000 Hz
-
         while(1){
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
             float angle_rad = magEnc.readRawAngle() * AS5600_RAW_TO_RAD;
             enc_angle_rad.store(angle_rad, std::memory_order_relaxed);
 
@@ -74,7 +93,6 @@ namespace sensors::encoder
             }
 #endif
             
-            vTaskDelayUntil(&xLastWakeTime, xFrequency);
         }
     }
 
