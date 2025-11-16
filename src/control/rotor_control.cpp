@@ -1,19 +1,49 @@
 #include "rotor_control.hpp"
 #include "sensors/encoder.hpp"
 
+#include "DShotRMT.h"
+
 // logic as described in "Flight Performance of a Swashplateless Micro Air Vehicle" by James Paulos and Mark Yim
 // https://ieeexplore.ieee.org/document/7139936
 
 namespace control::rotor
 {
-    DShotRMT motor1(MOTOR1_PIN); // 1 motor for testing purposes
+    DShotRMT motor1(MOTOR1_PIN, DSHOT150); // 1 motor for testing purposes
     static float control_input[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // roll, pitch, yaw, thrust
     static SemaphoreHandle_t control_mutex = xSemaphoreCreateMutex();
     
+
+    // timer interrupts
+    static hw_timer_t* rotorControlTimer = NULL;
+
+    // control timer interrupt for precise timing
+    void IRAM_ATTR onRotorControlTimer() {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        // notify the rotor control task to run
+        vTaskNotifyGiveFromISR(rotorTaskHandle, &xHigherPriorityTaskWoken);
+        if (xHigherPriorityTaskWoken == pdTRUE) {
+            portYIELD_FROM_ISR();
+        }
+    }
+    
     void initRotor()
     {
-        motor1.begin(DSHOT600, ENABLE_BIDIRECTION, 14);
-        xTaskCreate(rotorControlTask, "RotorControlTask", 2048, NULL, 1, NULL);
+        motor1.begin();
+        motor1.sendThrottle(0);
+
+        Serial.println("[Rotor Controller]: Initializing rotor control...");
+        for(int i = 0; i < 300; i++) {  // 3 seconds of zero throttle
+            delay(10);
+        }
+
+        xTaskCreatePinnedToCore(rotorControlTask, "RotorControlTask", 4096, NULL, 3, &rotorTaskHandle, 0);
+    
+        // create timer
+        Serial.println("[Rotor Controller]: Setting up rotor control timer...");
+        rotorControlTimer = timerBegin(1000000); // 1 MHz timer
+        timerAttachInterrupt(rotorControlTimer, &onRotorControlTimer);
+        timerAlarm(rotorControlTimer, 1000, true, 0); // 1000 Hz alarm, auto-reload
+        Serial.println("[Rotor Controller]: Rotor control initialized.");
     }
 
     void rotorControlTask(void *pvParameters)
@@ -21,13 +51,12 @@ namespace control::rotor
         float amplitude = 0.0f;
         float phase = 0.0f;
         float local_control_input[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-        float output_throttle_percent;
-
-        TickType_t xLastWakeTime = xTaskGetTickCount();
-        const TickType_t xFrequency = pdMS_TO_TICKS(1); // 1000 Hz control loop
+        float output_throttle_fraction;
 
         while (true)
         {
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);            
+
             // copy control inputs atomically
             xSemaphoreTake(control_mutex, portMAX_DELAY);
             local_control_input[0] = control_input[0];
@@ -43,14 +72,12 @@ namespace control::rotor
                 phase = atan2(local_control_input[1], local_control_input[0]);
 
                 // convert to an oscillatory throttle response
-                output_throttle_percent = local_control_input[3] + amplitude * cos(sensors::encoder::enc_angle_rad.load() - phase);
+                output_throttle_fraction = local_control_input[3] + amplitude * cos(sensors::encoder::enc_angle_rad.load() - phase);
             } else {
                 // no pitch or roll command, just set throttle directly
-                output_throttle_percent = local_control_input[3];
+                output_throttle_fraction = local_control_input[3];
             }
-            sendToDshot(output_throttle_percent);
-
-            vTaskDelayUntil(&xLastWakeTime, xFrequency);
+            sendToDshot(output_throttle_fraction);
         }
     }
 
@@ -64,18 +91,16 @@ namespace control::rotor
         xSemaphoreGive(control_mutex);
     }
 
-    void sendToDshot(float throttle_percent)
-    {
-        // ensure throttle_percent is within [0.0, 1.0]
-        throttle_percent = std::max(0.0f, std::min(1.0f, throttle_percent));
-
+    void sendToDshot(float throttle_fraction)
+    { 
+        if (throttle_fraction <= 0.0f) {
+            
+            return;
+        }
+        // ensure throttle_fraction is within [0.0, 1.0]
+        throttle_fraction = std::max(0.0f, std::min(1.0f, throttle_fraction));
         // convert to DShot value (48 to 2047 for throttle)
-        uint16_t dshot_value = static_cast<uint16_t>(48 + throttle_percent * (2047 - 48));
-        motor1.send_dshot_value(dshot_value);
-    }
-
-    void stop()
-    {
-        motor1.send_dshot_value(DSHOT_CMD_MOTOR_STOP);
+        uint16_t dshot_value = static_cast<uint16_t>(48 + throttle_fraction * (2047 - 48));
+        motor1.sendThrottle(dshot_value);
     }
 }

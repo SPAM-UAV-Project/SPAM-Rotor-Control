@@ -10,7 +10,7 @@
 
 #define AS5600_RAW_TO_RAD (2.0f * M_PI / 4096.0f)
 
-// #define LOG_ENCODER // enable encoder logging task
+//#define LOG_ENCODER // enable encoder logging task
 
 namespace sensors::encoder
 {
