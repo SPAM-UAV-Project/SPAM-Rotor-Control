@@ -7,7 +7,8 @@
 // temp state for testing
 enum class State {
     IDLE,
-    ACTIVE
+    CALIBRATE,
+    ACTIVE,
 };
 State state = State::IDLE;
 
