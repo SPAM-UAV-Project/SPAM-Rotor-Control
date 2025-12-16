@@ -1,6 +1,7 @@
 #include "main.hpp"
 #include "sensors/encoder.hpp"
 #include "control/rotor_control.hpp"
+#include "thrust_stand/thrust_stand.hpp"
 #include <Arduino.h>
 
 
@@ -8,7 +9,10 @@
 enum class State {
     IDLE,
     CALIBRATE,
-    ACTIVE,
+    PROGRAMMING,
+    VERBOSE,
+    MANUAL_ACTIVE,
+    PROGRAM_ACTIVE
 };
 State state = State::IDLE;
 
@@ -16,6 +20,9 @@ State state = State::IDLE;
 float roll_command = 0.0f;
 float pitch_command = 0.03f;
 float thrust_command = 0.10f;
+
+// Thrust Stand
+sensors::ThrustStand ts;
 
 void setup() 
 {
@@ -29,158 +36,79 @@ void setup()
     sensors::encoder::initEncoder();
     // initialize rotor control
     control::rotor::initRotor();
+    // intialize thrust stand load cells
+    ts.begin();
 
     delay(2000);
     
     // Print command help
-    Serial.println("=== SPAM Rotor Control ===");
+    Serial.println("=== SwashPlateless Attitude Manipulation (SPAM) Thrust Stand ===");
     Serial.println("Commands:");
-    Serial.println("  s - Start motor (ACTIVE state)");
-    Serial.println("  x - Stop motor (IDLE state)");
-    Serial.println("  r<value> - Set roll command (e.g., r0.03)");
-    Serial.println("  p<value> - Set pitch command (e.g., p0.05)");
-    Serial.println("  t<value> - Set thrust command (e.g., t0.12)");
-    Serial.println("  ? - Show current status");
+    Serial.println("  c - Start Calibration Routine");
+    Serial.println("  s - Start Programmed Test (motor ACTIVE)");
+    Serial.println("  p - Enter Programming Mode");
+    Serial.println("  d - Display Current Encoder and Load Cell Values");
+    Serial.println("  m - Manual Control Mode");
     Serial.println("========================");
 }
 
 void processSerialInput() {
-    static bool waiting_for_confirmation = false;
-    static char pending_command = 0;
-    static float pending_value = 0.0f;
-    
-    if (Serial.available()) {
-        if (waiting_for_confirmation) {
-            // Handle confirmation
-            char response = Serial.read();
-            if (response == 'y' || response == 'Y') {
-                // Execute the pending command
-                switch (pending_command) {
-                    case 's':
-                        state = State::ACTIVE;
-                        Serial.println("CONFIRMED - Motor ACTIVE");
-                        break;
-                    case 'x':
-                        state = State::IDLE;
-                        Serial.println("CONFIRMED - Motor IDLE");
-                        break;
-                    case 'r':
-                        roll_command = pending_value;
-                        Serial.printf("CONFIRMED - Roll set to %.3f\n", roll_command);
-                        break;
-                    case 'p':
-                        pitch_command = pending_value;
-                        Serial.printf("CONFIRMED - Pitch set to %.3f\n", pitch_command);
-                        break;
-                    case 't':
-                        thrust_command = pending_value;
-                        Serial.printf("CONFIRMED - Thrust set to %.3f\n", thrust_command);
-                        break;
-                }
-            } else {
-                Serial.println("CANCELLED");
-            }
-            waiting_for_confirmation = false;
-            pending_command = 0;
-            // Clear any remaining characters
-            while (Serial.available()) Serial.read();
-            return;
-        }
-        
-        String input = Serial.readStringUntil('\n');
-        input.trim();
-        
-        if (input.length() == 0) return;
-        
-        char command = input.charAt(0);
-        
+    if (Serial.available() > 0) {
+        char command = Serial.read();
+
         switch (command) {
+            case 'c':
+                Serial.println("Starting Calibration Routine...");
+                state = State::CALIBRATE;
+                break;
+
             case 's':
-            case 'S':
-                Serial.printf("Command: START motor - Pitch: %.3f, Thrust: %.3f\n", pitch_command, thrust_command);
-                Serial.print("Confirm? (y/n): ");
-                waiting_for_confirmation = true;
-                pending_command = 's';
+                Serial.println("Starting Programmed Test...");
+                state = State::PROGRAM_ACTIVE;
                 break;
-                
-            case 'x':
-            case 'X':
-                Serial.println("Command: STOP motor");
-                Serial.print("Confirm? (y/n): ");
-                waiting_for_confirmation = true;
-                pending_command = 'x';
-                break;
-                
-            case 'r':
-            case 'R':
-                if (input.length() > 1) {
-                    float new_roll = input.substring(1).toFloat();
-                    Serial.printf("Command: Set roll to %.3f (current: %.3f)\n", new_roll, roll_command);
-                    Serial.print("Confirm? (y/n): ");
-                    waiting_for_confirmation = true;
-                    pending_command = 'r';
-                    pending_value = new_roll;
-                } else {
-                    Serial.println("Usage: r<value> (e.g., r0.03)");
-                }
-                break;
-                
+
             case 'p':
-            case 'P':
-                if (input.length() > 1) {
-                    float new_pitch = input.substring(1).toFloat();
-                    Serial.printf("Command: Set pitch to %.3f (current: %.3f)\n", new_pitch, pitch_command);
-                    Serial.print("Confirm? (y/n): ");
-                    waiting_for_confirmation = true;
-                    pending_command = 'p';
-                    pending_value = new_pitch;
-                } else {
-                    Serial.println("Usage: p<value> (e.g., p0.05)");
-                }
+                Serial.println("Entering Programming Mode...");
+                state = State::PROGRAMMING;
                 break;
-                
-            case 't':
-            case 'T':
-                if (input.length() > 1) {
-                    float new_thrust = input.substring(1).toFloat();
-                    Serial.printf("Command: Set thrust to %.3f (current: %.3f)\n", new_thrust, thrust_command);
-                    Serial.print("Confirm? (y/n): ");
-                    waiting_for_confirmation = true;
-                    pending_command = 't';
-                    pending_value = new_thrust;
-                } else {
-                    Serial.println("Usage: t<value> (e.g., t0.12)");
-                }
+
+            case 'd':
+                Serial.println("Displaying Current Encoder and Load Cell Values...");
+                state = State::VERBOSE;
                 break;
-                
-            case '?':
-                Serial.println("=== Current Status ===");
-                Serial.printf("State: %s\n", (state == State::ACTIVE) ? "ACTIVE" : "IDLE");
-                Serial.printf("Roll Command: %.3f\n", roll_command);
-                Serial.printf("Pitch Command: %.3f\n", pitch_command);
-                Serial.printf("Thrust Command: %.3f\n", thrust_command);
-                Serial.printf("Encoder Angle: %.3f rad\n", sensors::encoder::enc_angle_rad.load());
-                Serial.println("====================");
+
+            case 'm':
+                Serial.println("Entering Manual Control Mode...");
+                state = State::MANUAL_ACTIVE;
                 break;
-                
+
+            case 'h':
+                Serial.println("Commands:");
+                Serial.println("  c - Start Calibration Routine");
+                Serial.println("  s - Start Programmed Test (motor ACTIVE)");
+                Serial.println("  p - Enter Programming Mode");
+                Serial.println("  d - Display Current Encoder and Load Cell Values");
+                Serial.println("  m - Manual Control Mode");
+                break;
+
             default:
-                Serial.println("Unknown command. Type ? for help");
+                Serial.println("Unknown command. Please try again.");
                 break;
         }
     }
-}
+
+}    
+
 
 void loop() 
 {
-    // Process serial input
     processSerialInput();
 
-    static uint32_t last_print_time = 0;
-    if (millis() - last_print_time >= 1000) {
-        last_print_time = millis();
-        Serial.printf("Encoder Angle: %.3f rad\n", sensors::encoder::enc_angle_rad.load());
-    }
-
+    // static uint32_t last_print_time = 0;
+    // if (millis() - last_print_time >= 1000) {
+    //     last_print_time = millis();
+    //     Serial.printf("Encoder Angle: %.3f rad\n", sensors::encoder::enc_angle_rad.load());
+    // }
     
     // Apply current state
     switch (state)
@@ -189,10 +117,28 @@ void loop()
             control::rotor::setControlInputs(0.0, 0.0, 0.0, 0.0);
             break;
 
-        case State::ACTIVE:
+        case State::CALIBRATE:
+            // Call calibration routine - this is blocking; this FSM wont run
+            ts.calibrate();
+            state = State::IDLE;
+            break;
+
+        case State::PROGRAM_ACTIVE:
+            break;
+
+        case State::PROGRAMMING:
+            break;
+
+        case State::MANUAL_ACTIVE:
             control::rotor::setControlInputs(roll_command, pitch_command, 0.0, thrust_command);
             break;
 
+        case State::VERBOSE:
+            Serial.printf("Encoder Angle: %.3f rad\n", sensors::encoder::enc_angle_rad.load());
+            Serial.printf("Thrust Stand: Torque X: %.3f Nm, Torque Z: %.3f Nm, Thrust: %.3f N\n", 
+                          ts.getTorqueX(), ts.getTorqueZ(), ts.getThrust());
+            delay(50);
+            break;
 
     }
     delay(10);

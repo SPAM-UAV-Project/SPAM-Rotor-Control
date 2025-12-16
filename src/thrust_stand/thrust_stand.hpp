@@ -4,34 +4,50 @@
 #include <Arduino.h>
 #include "hx711.hpp"
 
+#define g 9.806f // m/s^2
+
 namespace sensors
 {
+
 class ThrustStand
 {
 public:
     ThrustStand();
-    ~ThrustStand() = default();
+    ~ThrustStand() = default;
 
     void begin();
     void calibrate();
 
-    void getTorqueX();
-    void getTorqueZ();
-    void getThrust();
+    float getTorqueX() { return torque_x; }
+    float getTorqueZ() { return torque_z; }
+    float getThrust() { return thrust; }
+
+    static void updateTaskEntry(void* instance) {
+        static_cast<ThrustStand*>(instance)->updateTask();
+    }   
+
+    TaskHandle_t thrustStandTaskHandle;
 
 private:
     const int lc_pin_dout[3] = {0, 1, 2};
     const int lc_pin_sck[3] = {4, 5, 6};
-    const float lc_calibration_factors[3] = {1.0f, 1.0f, 1.0f}; // to be calibrated
+    float lc_calibration_factors[3] = {1.0f, 1.0f, 1.0f}; // S_h1, S_h2, S_b
 
     NBHX711 lc_fr = NBHX711(lc_pin_dout[0], lc_pin_sck[0], 0, 1);
     NBHX711 lc_fl = NBHX711(lc_pin_dout[1], lc_pin_sck[1], 0, 1);
-    NBHX711 lc_br = NBHX711(lc_pin_dout[2], lc_pin_sck[2], 0, 1);
+    NBHX711 lc_b = NBHX711(lc_pin_dout[2], lc_pin_sck[2], 0, 1);
 
     float torque_x, torque_z, thrust;
-    float lc_values[3];
+    float lc_values[2]; // fr, fl, b
+    float calibration_weight_kg = 0.250f; // 250 grams
+
+    // geometry of thrust stand
+    float v = 0.1f; // vertical distance between load cells
+    float x = 0.05f; // horizontal distance from calib stick to front load cells
+    float l = 0.1f;
 
     void updateTask();
+    float getAverage(int lc_index, int samples, int delay_ms);
 };
 
 }
