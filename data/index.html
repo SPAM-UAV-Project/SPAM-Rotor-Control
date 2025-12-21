@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>SPAM Thrust Stand</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg: #0f0f14;
+            --card: #1a1a24;
+            --primary: #6366f1;
+            --accent: #22d3ee;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --danger: #ef4444;
+            --success: #22c55e
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1.5rem
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto
+        }
+
+        header {
+            text-align: center;
+            padding: 1.5rem 0
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text)
+        }
+
+        .subtitle {
+            color: var(--muted);
+            margin-top: 0.25rem;
+            font-size: 0.9rem
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1.5rem
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.06)
+        }
+
+        .card h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--muted)
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85rem;
+            font-family: inherit
+        }
+
+        .btn:hover {
+            opacity: 0.9
+        }
+
+        .btn-danger {
+            background: var(--danger)
+        }
+
+        .btn-success {
+            background: var(--success)
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary)
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed
+        }
+
+        #chart {
+            width: 100%;
+            height: 300px;
+            background: #12121a;
+            border-radius: 8px;
+            margin-top: 1rem
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: #12121a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 0.75rem;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            resize: vertical
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary)
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--muted)
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--danger)
+        }
+
+        .status-dot.active {
+            background: var(--success)
+        }
+
+        .readings {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-top: 0.75rem
+        }
+
+        .reading {
+            text-align: center;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 6px
+        }
+
+        .reading-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent)
+        }
+
+        .reading-label {
+            color: var(--muted);
+            font-size: 0.75rem;
+            margin-top: 0.2rem
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center
+        }
+
+        .file-input {
+            display: none
+        }
+
+        .full-width {
+            grid-column: span 2
+        }
+
+        .slider-group {
+            margin-top: 1rem
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem
+        }
+
+        .slider-label {
+            min-width: 80px;
+            font-size: 0.85rem;
+            color: var(--muted)
+        }
+
+        .slider {
+            flex: 1;
+            height: 6px;
+            background: #2a2a3a;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer
+        }
+
+        .slider:disabled {
+            opacity: 0.4
+        }
+
+        .slider-value {
+            min-width: 60px;
+            text-align: right;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: var(--accent)
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem
+        }
+
+        .checkbox-row input {
+            width: 16px;
+            height: 16px
+        }
+
+        .checkbox-row label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            cursor: pointer
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>SPAM Thrust Stand</h1>
+            <p class="subtitle">SwashPlateless Attitude Manipulation Test System</p>
+        </header>
+        <div class="grid">
+            <div class="card full-width">
+                <h2>LIVE READINGS</h2>
+                <div class="status"><span class="status-dot" id="statusDot"></span><span
+                        id="statusText">Disconnected</span></div>
+                <div class="readings">
+                    <div class="reading">
+                        <div class="reading-value" id="thrustVal">--</div>
+                        <div class="reading-label">Thrust (N)</div>
+                    </div>
+                    <div class="reading">
+                        <div class="reading-value" id="torqueXVal">--</div>
+                        <div class="reading-label">Torque X (Nm)</div>
+                    </div>
+                    <div class="reading">
+                        <div class="reading-value" id="torqueZVal">--</div>
+                        <div class="reading-label">Torque Z (Nm)</div>
+                    </div>
+                </div>
+                <canvas id="chart"></canvas>
+            </div>
+            <div class="card">
+                <h2>MANUAL CONTROL</h2>
+                <div class="slider-group">
+                    <div class="slider-row">
+                        <span class="slider-label">Thrust</span>
+                        <input type="range" class="slider" id="thrustSlider" min="0" max="1" step="0.01" value="0"
+                            disabled>
+                        <span class="slider-value" id="thrustSliderVal">0.00 N</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label">Torque X</span>
+                        <input type="range" class="slider" id="torqueSlider" min="-0.5" max="0.5" step="0.01" value="0"
+                            disabled>
+                        <span class="slider-value" id="torqueSliderVal">0.00 Nm</span>
+                    </div>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="armCheck" disabled>
+                    <label for="armCheck">Arm Motors</label>
+                </div>
+            </div>
+            <div class="card">
+                <h2>TEST ROUTINE</h2>
+                <span style="color:var(--muted);font-size:0.7rem;display:block;margin-bottom:0.5rem">Format:
+                    thrust,torque_x,duration_ms</span>
+                <textarea id="routineInput" placeholder="0.1,0.0,2000
+0.2,0.05,3000
+0.3,0.1,2000
+0.0,0.0,1000"></textarea>
+                <div class="btn-group" style="margin-top:0.75rem">
+                    <button class="btn" id="btnUpload" disabled>Upload</button>
+                    <input type="file" id="csvFile" class="file-input" accept=".csv,.txt">
+                    <button class="btn btn-outline" id="btnImportCsv">Import CSV</button>
+                    <button class="btn btn-success" id="btnStart" disabled>Start</button>
+                    <button class="btn btn-danger" id="btnStop" disabled>Stop</button>
+                    <button class="btn btn-outline" id="btnCalibrate" disabled>Calibrate</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let ws, connected = false, armed = false, running = false;
+        const maxPoints = 100;
+        const data = { t: [], th: [], tx: [], tz: [], th_sp: [], tx_sp: [] };
+        let ctx;
+
+        function updateUI() {
+            document.getElementById('armCheck').disabled = !connected;
+            document.getElementById('thrustSlider').disabled = !armed || running;
+            document.getElementById('torqueSlider').disabled = !armed || running;
+            document.getElementById('btnUpload').disabled = !connected;
+            document.getElementById('btnStart').disabled = !connected || !armed || running;
+            document.getElementById('btnStop').disabled = !connected || !running;
+            document.getElementById('btnCalibrate').disabled = !connected;
+        }
+
+        function connect() {
+            ws = new WebSocket(`ws://${location.host}/ws`);
+            ws.onopen = () => {
+                connected = true;
+                document.getElementById('statusDot').classList.add('active');
+                document.getElementById('statusText').textContent = 'Connected';
+                updateUI();
+            };
+            ws.onclose = () => {
+                connected = false; armed = false; running = false;
+                document.getElementById('statusDot').classList.remove('active');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                document.getElementById('armCheck').checked = false;
+                document.getElementById('thrustSlider').value = 0;
+                document.getElementById('torqueSlider').value = 0;
+                document.getElementById('thrustSliderVal').textContent = '0.00 N';
+                document.getElementById('torqueSliderVal').textContent = '0.00 Nm';
+                updateUI();
+                setTimeout(connect, 2000);
+            };
+            ws.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                document.getElementById('thrustVal').textContent = d.th.toFixed(3);
+                document.getElementById('torqueXVal').textContent = d.tx.toFixed(3);
+                document.getElementById('torqueZVal').textContent = d.tz.toFixed(3);
+
+                running = d.running;
+                updateUI();
+
+                data.t.push(d.t / 1000); data.th.push(d.th); data.tx.push(d.tx); data.tz.push(d.tz); data.th_sp.push(d.th_sp); data.tx_sp.push(d.tx_sp);
+                if (data.t.length > maxPoints) { Object.keys(data).forEach(k => data[k].shift()) }
+                drawChart();
+            };
+        }
+        connect();
+
+        function drawChart() {
+            if (!ctx) ctx = document.getElementById('chart').getContext('2d');
+            const c = document.getElementById('chart'), w = c.width = c.offsetWidth, h = c.height = c.offsetHeight;
+            ctx.fillStyle = '#12121a'; ctx.fillRect(0, 0, w, h);
+            if (data.t.length < 2) return;
+
+            const pad = 40, gw = w - pad * 2, gh = h - pad * 2;
+            const tMin = data.t[0], tMax = data.t[data.t.length - 1];
+            const allVals = [...data.th, ...data.tx, ...data.tz, ...data.th_sp, ...data.tx_sp];
+            let vMin = Math.min(...allVals), vMax = Math.max(...allVals);
+            if (vMax - vMin < 0.1) { vMin -= 0.1; vMax += 0.1 }
+
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = pad + gh * (1 - i / 5); ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
+                ctx.fillStyle = '#666'; ctx.font = '10px system-ui'; ctx.fillText((vMin + (vMax - vMin) * i / 5).toFixed(2), 5, y + 3)
+            }
+
+            const plot = (arr, color, dash = []) => {
+                ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash); ctx.beginPath();
+                arr.forEach((v, i) => { const x = pad + (data.t[i] - tMin) / (tMax - tMin) * gw, y = pad + gh * (1 - (v - vMin) / (vMax - vMin)); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y) });
+                ctx.stroke(); ctx.setLineDash([])
+            };
+
+            plot(data.th_sp, 'rgba(34,197,94,0.5)', [5, 5]);
+            plot(data.tx_sp, 'rgba(99,102,241,0.5)', [5, 5]);
+            plot(data.th, '#22c55e');
+            plot(data.tx, '#6366f1');
+            plot(data.tz, '#f59e0b');
+
+            ctx.fillStyle = '#888'; ctx.font = '11px system-ui';
+            ctx.fillText('Thrust', w - 80, 18); ctx.fillText('Torque X', w - 80, 32); ctx.fillText('Torque Z', w - 80, 46);
+            ctx.fillStyle = '#22c55e'; ctx.fillRect(w - 95, 11, 10, 10);
+            ctx.fillStyle = '#6366f1'; ctx.fillRect(w - 95, 25, 10, 10);
+            ctx.fillStyle = '#f59e0b'; ctx.fillRect(w - 95, 39, 10, 10);
+        }
+
+        document.getElementById('armCheck').onchange = (e) => {
+            armed = e.target.checked;
+            if (connected) {
+                ws.send(JSON.stringify({ cmd: armed ? 'arm' : 'disarm' }));
+            }
+            if (!armed) {
+                document.getElementById('thrustSlider').value = 0;
+                document.getElementById('torqueSlider').value = 0;
+                document.getElementById('thrustSliderVal').textContent = '0.00 N';
+                document.getElementById('torqueSliderVal').textContent = '0.00 Nm';
+            }
+            updateUI();
+        };
+
+        document.getElementById('thrustSlider').oninput = (e) => {
+            const v = parseFloat(e.target.value);
+            document.getElementById('thrustSliderVal').textContent = v.toFixed(2) + ' N';
+            if (connected && armed && !running) ws.send(JSON.stringify({ cmd: 'manual', thrust: v, torque_x: parseFloat(document.getElementById('torqueSlider').value) }));
+        };
+
+        document.getElementById('torqueSlider').oninput = (e) => {
+            const v = parseFloat(e.target.value);
+            document.getElementById('torqueSliderVal').textContent = v.toFixed(2) + ' Nm';
+            if (connected && armed && !running) ws.send(JSON.stringify({ cmd: 'manual', thrust: parseFloat(document.getElementById('thrustSlider').value), torque_x: v }));
+        };
+
+        document.getElementById('btnCalibrate').onclick = () => { if (connected) ws.send(JSON.stringify({ cmd: 'calibrate' })) };
+        document.getElementById('btnStart').onclick = () => { if (connected && armed) ws.send(JSON.stringify({ cmd: 'start_routine' })) };
+        document.getElementById('btnStop').onclick = () => { if (connected) ws.send(JSON.stringify({ cmd: 'stop_routine' })) };
+        document.getElementById('btnUpload').onclick = () => {
+            if (!connected) return;
+            const lines = document.getElementById('routineInput').value.trim().split('\n');
+            const steps = lines.map(l => { const [thrust, torque_x, duration] = l.split(',').map(Number); return { thrust, torque_x, duration } }).filter(s => !isNaN(s.thrust));
+            ws.send(JSON.stringify({ cmd: 'upload_routine', steps }));
+        };
+
+        document.getElementById('btnImportCsv').onclick = () => document.getElementById('csvFile').click();
+        document.getElementById('csvFile').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => { document.getElementById('routineInput').value = ev.target.result.trim() };
+            reader.readAsText(file)
+        };
+    </script>
+</body>
+
+</html>

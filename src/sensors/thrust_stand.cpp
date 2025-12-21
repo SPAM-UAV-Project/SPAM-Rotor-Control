@@ -16,7 +16,7 @@ void ThrustStand::begin()
 
     Serial.println("[Thrust Stand]: Load cells initialized.");
 
-    xTaskCreate(updateTaskEntry, "ThrustStandTask", 4096, NULL, 2, &thrustStandTaskHandle);
+    xTaskCreate(updateTaskEntry, "ThrustStandTask", 4096, this, 2, &thrustStandTaskHandle);
 
     Serial.println("[Thrust Stand]: Thrust stand task started.");
 }

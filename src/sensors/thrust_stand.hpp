@@ -22,6 +22,12 @@ public:
     float getTorqueZ() { return torque_z; }
     float getThrust() { return thrust; }
 
+    // Setpoint accessors
+    void setThrustSetpoint(float sp) { thrust_sp = sp; }
+    void setTorqueXSetpoint(float sp) { torque_x_sp = sp; }
+    float getThrustSetpoint() { return thrust_sp; }
+    float getTorqueXSetpoint() { return torque_x_sp; }
+
     static void updateTaskEntry(void* instance) {
         static_cast<ThrustStand*>(instance)->updateTask();
     }   
@@ -38,7 +44,9 @@ private:
     NBHX711 lc_b = NBHX711(lc_pin_dout[2], lc_pin_sck[2], 0, 1);
 
     float torque_x, torque_z, thrust;
-    float lc_values[2]; // fr, fl, b
+    float thrust_sp = 0.0f;
+    float torque_x_sp = 0.0f;
+    float lc_values[3]; // fr, fl, b
     float calibration_weight_kg = 0.250f; // 250 grams
 
     // geometry of thrust stand
