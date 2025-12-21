@@ -31,6 +31,7 @@ byte NBHX711::getHistSize() {
 }	
 
 void NBHX711::begin() {
+	pinMode(dataPin, INPUT);
 	pinMode(clockPin, OUTPUT);
 }
 
