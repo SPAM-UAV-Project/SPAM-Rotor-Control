@@ -306,6 +306,30 @@
                             disabled>
                         <span class="slider-value" id="torqueSliderVal">0.00 Nm</span>
                     </div>
+                    <div class="slider-row">
+                        <span class="slider-label">Torque Y</span>
+                        <input type="range" class="slider" id="torqueYSlider" min="-0.5" max="0.5" step="0.01" value="0"
+                            disabled>
+                        <span class="slider-value" id="torqueYSliderVal">0.00 Nm</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label">Torque Z</span>
+                        <input type="range" class="slider" id="torqueZSlider" min="-0.5" max="0.5" step="0.01" value="0"
+                            disabled>
+                        <span class="slider-value" id="torqueZSliderVal">0.00 Nm</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label">Phase Lag</span>
+                        <input type="range" class="slider" id="phaseLagSlider" min="-180" max="180" step="1" value="0"
+                            disabled>
+                        <span class="slider-value" id="phaseLagSliderVal">0°</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label">Amp Cut-In</span>
+                        <input type="range" class="slider" id="ampCutInSlider" min="0" max="1" step="0.01" value="0"
+                            disabled>
+                        <span class="slider-value" id="ampCutInSliderVal">0.00</span>
+                    </div>
                 </div>
                 <div class="checkbox-row">
                     <input type="checkbox" id="armCheck" disabled>
@@ -315,11 +339,11 @@
             <div class="card">
                 <h2>TEST ROUTINE</h2>
                 <span style="color:var(--muted);font-size:0.7rem;display:block;margin-bottom:0.5rem">Format:
-                    thrust,torque_x,duration_ms</span>
-                <textarea id="routineInput" placeholder="0.1,0.0,2000
-0.2,0.05,3000
-0.3,0.1,2000
-0.0,0.0,1000"></textarea>
+                    thrust,torque_x,torque_y,torque_z,phase_lag,amp_cut_in,duration_ms</span>
+                <textarea id="routineInput" placeholder="0.1,0.0,0.0,0.0,0,0,2000
+0.2,0.05,0.0,0.0,10,0.1,3000
+0.3,0.1,0.0,0.0,15,0.2,2000
+0.0,0.0,0.0,0.0,0,0,1000"></textarea>
                 <div class="btn-group" style="margin-top:0.75rem">
                     <button class="btn" id="btnUpload" disabled>Upload</button>
                     <input type="file" id="csvFile" class="file-input" accept=".csv,.txt">
@@ -341,6 +365,10 @@
             document.getElementById('armCheck').disabled = !connected;
             document.getElementById('thrustSlider').disabled = !armed || running;
             document.getElementById('torqueSlider').disabled = !armed || running;
+            document.getElementById('torqueYSlider').disabled = !armed || running;
+            document.getElementById('torqueZSlider').disabled = !armed || running;
+            document.getElementById('phaseLagSlider').disabled = !armed || running;
+            document.getElementById('ampCutInSlider').disabled = !armed || running;
             document.getElementById('btnUpload').disabled = !connected;
             document.getElementById('btnStart').disabled = !connected || !armed || running;
             document.getElementById('btnStop').disabled = !connected || !running;
@@ -362,8 +390,16 @@
                 document.getElementById('armCheck').checked = false;
                 document.getElementById('thrustSlider').value = 0;
                 document.getElementById('torqueSlider').value = 0;
+                document.getElementById('torqueYSlider').value = 0;
+                document.getElementById('torqueZSlider').value = 0;
+                document.getElementById('phaseLagSlider').value = 0;
+                document.getElementById('ampCutInSlider').value = 0;
                 document.getElementById('thrustSliderVal').textContent = '0.00 N';
                 document.getElementById('torqueSliderVal').textContent = '0.00 Nm';
+                document.getElementById('torqueYSliderVal').textContent = '0.00 Nm';
+                document.getElementById('torqueZSliderVal').textContent = '0.00 Nm';
+                document.getElementById('phaseLagSliderVal').textContent = '0°';
+                document.getElementById('ampCutInSliderVal').textContent = '0.00';
                 updateUI();
                 setTimeout(connect, 2000);
             };
@@ -428,22 +464,68 @@
             if (!armed) {
                 document.getElementById('thrustSlider').value = 0;
                 document.getElementById('torqueSlider').value = 0;
+                document.getElementById('torqueYSlider').value = 0;
+                document.getElementById('torqueZSlider').value = 0;
+                document.getElementById('phaseLagSlider').value = 0;
+                document.getElementById('ampCutInSlider').value = 0;
                 document.getElementById('thrustSliderVal').textContent = '0.00 N';
                 document.getElementById('torqueSliderVal').textContent = '0.00 Nm';
+                document.getElementById('torqueYSliderVal').textContent = '0.00 Nm';
+                document.getElementById('torqueZSliderVal').textContent = '0.00 Nm';
+                document.getElementById('phaseLagSliderVal').textContent = '0°';
+                document.getElementById('ampCutInSliderVal').textContent = '0.00';
             }
             updateUI();
         };
 
+        function sendManualUpdate() {
+            if (connected && armed && !running) {
+                ws.send(JSON.stringify({
+                    cmd: 'manual',
+                    thrust: parseFloat(document.getElementById('thrustSlider').value),
+                    torque_x: parseFloat(document.getElementById('torqueSlider').value),
+                    torque_y: parseFloat(document.getElementById('torqueYSlider').value),
+                    torque_z: parseFloat(document.getElementById('torqueZSlider').value),
+                    phase_lag: parseFloat(document.getElementById('phaseLagSlider').value),
+                    amp_cut_in: parseFloat(document.getElementById('ampCutInSlider').value)
+                }));
+            }
+        }
+
         document.getElementById('thrustSlider').oninput = (e) => {
             const v = parseFloat(e.target.value);
             document.getElementById('thrustSliderVal').textContent = v.toFixed(2) + ' N';
-            if (connected && armed && !running) ws.send(JSON.stringify({ cmd: 'manual', thrust: v, torque_x: parseFloat(document.getElementById('torqueSlider').value) }));
+            sendManualUpdate();
         };
 
         document.getElementById('torqueSlider').oninput = (e) => {
             const v = parseFloat(e.target.value);
             document.getElementById('torqueSliderVal').textContent = v.toFixed(2) + ' Nm';
-            if (connected && armed && !running) ws.send(JSON.stringify({ cmd: 'manual', thrust: parseFloat(document.getElementById('thrustSlider').value), torque_x: v }));
+            sendManualUpdate();
+        };
+
+        document.getElementById('torqueYSlider').oninput = (e) => {
+            const v = parseFloat(e.target.value);
+            document.getElementById('torqueYSliderVal').textContent = v.toFixed(2) + ' Nm';
+            sendManualUpdate();
+        };
+
+        document.getElementById('torqueZSlider').oninput = (e) => {
+            const v = parseFloat(e.target.value);
+            document.getElementById('torqueZSliderVal').textContent = v.toFixed(2) + ' Nm';
+            sendManualUpdate();
+        };
+
+        document.getElementById('phaseLagSlider').oninput = (e) => {
+            const v = parseFloat(e.target.value);
+            document.getElementById('phaseLagSliderVal').textContent = v.toFixed(0) + '°';
+            sendManualUpdate();
+        };
+
+        document.getElementById('ampCutInSlider').oninput = (e) => {
+            const v = parseFloat(e.target.value);
+            document.getElementById('ampCutInSliderVal').textContent = v.toFixed(2);
+            sendManualUpdate();
         };
 
         document.getElementById('btnCalibrate').onclick = () => { if (connected) ws.send(JSON.stringify({ cmd: 'calibrate' })) };
@@ -452,7 +534,10 @@
         document.getElementById('btnUpload').onclick = () => {
             if (!connected) return;
             const lines = document.getElementById('routineInput').value.trim().split('\n');
-            const steps = lines.map(l => { const [thrust, torque_x, duration] = l.split(',').map(Number); return { thrust, torque_x, duration } }).filter(s => !isNaN(s.thrust));
+            const steps = lines.map(l => {
+                const [thrust, torque_x, torque_y, torque_z, phase_lag, amp_cut_in, duration] = l.split(',').map(Number);
+                return { thrust, torque_x, torque_y, torque_z, phase_lag, amp_cut_in, duration };
+            }).filter(s => !isNaN(s.thrust));
             ws.send(JSON.stringify({ cmd: 'upload_routine', steps }));
         };
 

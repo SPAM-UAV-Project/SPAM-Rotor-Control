@@ -2,7 +2,6 @@
 #define ROTOR_CONTROL_HPP
 
 #define MOTOR1_PIN 20
-#define AMP_OFFSET 0.0f //  amplitude offset to overcome static friction of hinge
 
 #include <Arduino.h>
 
@@ -12,7 +11,7 @@ namespace control::rotor
 
     void initRotor();
     void rotorControlTask(void *pvParameters);
-    void setControlInputs(float roll, float pitch, float yaw, float thrust);
+    void setControlInputs(float roll, float pitch, float yaw, float thrust, float phase_lag, float amp_cut_in);
     void sendToDshot(float throttle_percent);
 }
 

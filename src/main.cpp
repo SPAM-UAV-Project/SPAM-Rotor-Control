@@ -63,7 +63,7 @@ void loop()
     {
         case State::IDLE:
             tsLogger.stop();
-            control::rotor::setControlInputs(0.0, 0.0, 0.0, 0.0);
+            control::rotor::setControlInputs(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
             break;
 
         case State::CALIBRATE:
@@ -77,12 +77,18 @@ void loop()
             tsLogger.start();
             ts.setThrustSetpoint(tsUI.getCurrentThrustSetpoint());
             ts.setTorqueXSetpoint(tsUI.getCurrentTorqueXSetpoint());
+            ts.setTorqueYSetpoint(tsUI.getCurrentTorqueYSetpoint());
+            ts.setTorqueZSetpoint(tsUI.getCurrentTorqueZSetpoint());
+            ts.setAmpCutIn(tsUI.getCurrentAmpCutIn());
+            ts.setPhaseLag(tsUI.getCurrentPhaseLag());
 
             control::rotor::setControlInputs(
-                0.0, 
                 ts.getTorqueXSetpoint(),
-                0.0, 
-                ts.getThrustSetpoint()
+                ts.getTorqueYSetpoint(),
+                ts.getTorqueZSetpoint(),
+                ts.getThrustSetpoint(),
+                ts.getPhaseLag(),
+                ts.getAmpCutIn()
             );
             break;
     }

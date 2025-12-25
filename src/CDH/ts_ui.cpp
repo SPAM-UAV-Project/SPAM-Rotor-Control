@@ -75,12 +75,20 @@ void ThrustStandUI::handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
         routineRunning = false;
         currentThrustSp = 0;
         currentTorqueXSp = 0;
+        currentTorqueYSp = 0;
+        currentTorqueZSp = 0;
+        currentPhaseLag = 0;
+        currentAmpCutIn = 0;
         if (disarmCallback) disarmCallback();
     }
     else if (strcmp(cmd, "manual") == 0) {
         if (!routineRunning) {
             currentThrustSp = doc["thrust"] | 0.0f;
             currentTorqueXSp = doc["torque_x"] | 0.0f;
+            currentTorqueYSp = doc["torque_y"] | 0.0f;
+            currentTorqueZSp = doc["torque_z"] | 0.0f;
+            currentPhaseLag = doc["phase_lag"] | 0.0f;
+            currentAmpCutIn = doc["amp_cut_in"] | 0.0f;
         }
     }
     else if (strcmp(cmd, "calibrate") == 0) {
@@ -98,12 +106,20 @@ void ThrustStandUI::handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
             stepStartTime = millis();
             currentThrustSp = routine[0].thrust_setpoint;
             currentTorqueXSp = routine[0].torque_x_setpoint;
+            currentTorqueYSp = routine[0].torque_y_setpoint;
+            currentTorqueZSp = routine[0].torque_z_setpoint;
+            currentPhaseLag = routine[0].phase_lag;
+            currentAmpCutIn = routine[0].amp_cut_in;
         }
     }
     else if (strcmp(cmd, "stop_routine") == 0) {
         routineRunning = false;
         currentThrustSp = 0;
         currentTorqueXSp = 0;
+        currentTorqueYSp = 0;
+        currentTorqueZSp = 0;
+        currentPhaseLag = 0;
+        currentAmpCutIn = 0;
     }
     else if (strcmp(cmd, "upload_routine") == 0) {
         JsonArray steps = doc["steps"];
@@ -112,6 +128,10 @@ void ThrustStandUI::handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
             if (routineStepCount >= MAX_ROUTINE_STEPS) break;
             routine[routineStepCount].thrust_setpoint = step["thrust"] | 0.0f;
             routine[routineStepCount].torque_x_setpoint = step["torque_x"] | 0.0f;
+            routine[routineStepCount].torque_y_setpoint = step["torque_y"] | 0.0f;
+            routine[routineStepCount].torque_z_setpoint = step["torque_z"] | 0.0f;
+            routine[routineStepCount].phase_lag = step["phase_lag"] | 0.0f;
+            routine[routineStepCount].amp_cut_in = step["amp_cut_in"] | 0.0f;
             routine[routineStepCount].duration_ms = step["duration"] | 1000;
             routineStepCount++;
         }
@@ -143,6 +163,10 @@ void ThrustStandUI::updateRoutine() {
         routineRunning = false;
         currentThrustSp = 0;
         currentTorqueXSp = 0;
+        currentTorqueYSp = 0;
+        currentTorqueZSp = 0;
+        currentPhaseLag = 0;
+        currentAmpCutIn = 0;
         return;
     }
     
@@ -152,6 +176,10 @@ void ThrustStandUI::updateRoutine() {
             stepStartTime = millis();
             currentThrustSp = routine[currentRoutineStep].thrust_setpoint;
             currentTorqueXSp = routine[currentRoutineStep].torque_x_setpoint;
+            currentTorqueYSp = routine[currentRoutineStep].torque_y_setpoint;
+            currentTorqueZSp = routine[currentRoutineStep].torque_z_setpoint;
+            currentPhaseLag = routine[currentRoutineStep].phase_lag;
+            currentAmpCutIn = routine[currentRoutineStep].amp_cut_in;
         }
     }
 }

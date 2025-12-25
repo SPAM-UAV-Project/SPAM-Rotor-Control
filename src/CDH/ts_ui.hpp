@@ -12,6 +12,10 @@ namespace CDH {
 struct RoutineStep {
     float thrust_setpoint;
     float torque_x_setpoint;
+    float torque_y_setpoint;
+    float torque_z_setpoint;
+    float phase_lag;
+    float amp_cut_in;
     uint32_t duration_ms;
 };
 
@@ -49,6 +53,10 @@ public:
     bool isRoutineRunning() const { return routineRunning; }
     float getCurrentThrustSetpoint() const { return currentThrustSp; }
     float getCurrentTorqueXSetpoint() const { return currentTorqueXSp; }
+    float getCurrentTorqueYSetpoint() const { return currentTorqueYSp; }
+    float getCurrentTorqueZSetpoint() const { return currentTorqueZSp; }
+    float getCurrentPhaseLag() const { return currentPhaseLag; }
+    float getCurrentAmpCutIn() const { return currentAmpCutIn; }
     
     void setCalibrationStep(uint8_t step) { calibrationStep = step; }
     void setCalibrationComplete() { calibrating = false; calibrationStep = 0; }
@@ -72,6 +80,10 @@ private:
     
     float currentThrustSp = 0;
     float currentTorqueXSp = 0;
+    float currentTorqueYSp = 0;
+    float currentTorqueZSp = 0;
+    float currentPhaseLag = 0;
+    float currentAmpCutIn = 0;
     
     DataPoint dataBuffer[DATA_BUFFER_SIZE];
     size_t dataIndex = 0;

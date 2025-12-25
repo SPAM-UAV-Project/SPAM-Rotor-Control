@@ -25,8 +25,16 @@ public:
     // Setpoint accessors
     void setThrustSetpoint(float sp) { thrust_sp = sp; }
     void setTorqueXSetpoint(float sp) { torque_x_sp = sp; }
+    void setTorqueYSetpoint(float sp) { torque_y_sp = sp; }
+    void setTorqueZSetpoint(float sp) { torque_z_sp = sp; }
+    void setAmpCutIn(float amp) { amp_cut_in = amp; }
+    void setPhaseLag(float phase) { phase_lag = phase; }
     float getThrustSetpoint() { return thrust_sp; }
     float getTorqueXSetpoint() { return torque_x_sp; }
+    float getTorqueYSetpoint() { return torque_y_sp; }
+    float getTorqueZSetpoint() { return torque_z_sp; }
+    float getAmpCutIn() { return amp_cut_in; }
+    float getPhaseLag() { return phase_lag * M_PI / 180.0f; }
 
     static void updateTaskEntry(void* instance) {
         static_cast<ThrustStand*>(instance)->updateTask();
@@ -47,6 +55,10 @@ private:
     float torque_x, torque_z, thrust;
     float thrust_sp = 0.0f;
     float torque_x_sp = 0.0f;
+    float torque_y_sp = 0.0f;
+    float torque_z_sp = 0.0f;
+    float amp_cut_in = 0.0f;
+    float phase_lag = 0.0f;
     float lc_values[3]; // fr, fl, b
     float calibration_weight_kg = 0.250f; // 250 grams
 

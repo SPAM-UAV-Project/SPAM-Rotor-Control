@@ -23,13 +23,13 @@ void ThrustStand::updateTask()
     while(true)
     {
         if (lc_fr.update()) {      
-            lc_values[0] = lc_fr.getValue(5);  // Average 5 readings to reduce noise
+            lc_values[0] = lc_fr.getValue(1);
         }
         if (lc_fl.update()) {      
-            lc_values[1] = lc_fl.getValue(5);
+            lc_values[1] = lc_fl.getValue(1);
         }
         if (lc_b.update()) {      
-            lc_values[2] = lc_b.getValue(5);
+            lc_values[2] = lc_b.getValue(1);
         }
 
         // compute torque and thrust

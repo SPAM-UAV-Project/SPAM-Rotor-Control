@@ -2,6 +2,7 @@
 #include "sensors/encoder.hpp"
 
 #include "DShotRMT.h"
+#include <optional>
 
 // logic as described in "Flight Performance of a Swashplateless Micro Air Vehicle" by James Paulos and Mark Yim
 // https://ieeexplore.ieee.org/document/7139936
@@ -10,6 +11,7 @@ namespace control::rotor
 {
     DShotRMT motor1(MOTOR1_PIN, DSHOT150); // 1 motor for testing purposes
     static float control_input[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // roll, pitch, yaw, thrust
+    static float rotor_coefficients[2] = {0.0f, 0.0f}; // phase lag, amplitude cut-in
     static SemaphoreHandle_t control_mutex = xSemaphoreCreateMutex();
     
 
@@ -51,6 +53,8 @@ namespace control::rotor
         float amplitude = 0.0f;
         float phase = 0.0f;
         float local_control_input[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float phase_lag = 0.0f;
+        float amp_cut_in = 0.0f;
         float output_throttle_fraction;
 
         while (true)
@@ -63,31 +67,35 @@ namespace control::rotor
             local_control_input[1] = control_input[1];
             local_control_input[2] = control_input[2];
             local_control_input[3] = control_input[3];
+            phase_lag = rotor_coefficients[0];
+            amp_cut_in = rotor_coefficients[1];
             xSemaphoreGive(control_mutex);
 
             if (local_control_input[0] != 0.0f || local_control_input[1] != 0.0f)
             {
                 // for swashplateless rotor control, we need to find an amplitude and a phase lag
-                amplitude = AMP_OFFSET + sqrt(local_control_input[0] * local_control_input[0] + local_control_input[1] * local_control_input[1]);
+                amplitude = amp_cut_in + sqrt(local_control_input[0] * local_control_input[0] + local_control_input[1] * local_control_input[1]);
                 phase = atan2(local_control_input[1], local_control_input[0]);
 
                 // convert to an oscillatory throttle response
-                output_throttle_fraction = local_control_input[3] + amplitude * cos(sensors::encoder::enc_angle_rad.load() - phase);
+                output_throttle_fraction = ((0.5f * local_control_input[3]) - local_control_input[2]) + amplitude * cos(sensors::encoder::enc_angle_rad.load() - phase - phase_lag);
             } else {
                 // no pitch or roll command, just set throttle directly
-                output_throttle_fraction = local_control_input[3];
+                output_throttle_fraction = ((0.5f * local_control_input[3]) - local_control_input[2]);
             }
             sendToDshot(output_throttle_fraction);
         }
     }
 
-    void setControlInputs(float roll, float pitch, float yaw, float thrust)
+    void setControlInputs(float roll, float pitch, float yaw, float thrust, float phase_lag, float amp_cut_in)
     {
         xSemaphoreTake(control_mutex, portMAX_DELAY);
         control_input[0] = roll;
         control_input[1] = pitch;
         control_input[2] = yaw;
         control_input[3] = thrust;
+        rotor_coefficients[0] = phase_lag;
+        rotor_coefficients[1] = amp_cut_in;
         xSemaphoreGive(control_mutex);
     }
 
