@@ -1,7 +1,8 @@
 #ifndef ROTOR_CONTROL_HPP
 #define ROTOR_CONTROL_HPP
 
-#define MOTOR1_PIN 20
+#define MOTOR1_PIN 18
+#define ARMING_THROTTLE 0.10f // per motor, can be set to 0.075
 
 #include <Arduino.h>
 

@@ -9,7 +9,7 @@ Logger::Logger(sensors::ThrustStand& ts) : ts_(ts) {}
 void Logger::start() {
     if (!currently_logging_) {
         currently_logging_ = true;
-        Serial.println("time_ms, torque_hor, torque_z, thrust, torque_x_sp, torque_y_sp, torque_z_sp, thrust_sp, amp_cut_in, phase_lag");
+        Serial.println("time_ms, force_y, torque_z, thrust, B_x, B_y, torque_z_sp, thrust_sp, amp_cut_in, phase_lag, angular_velocity");
 
     }
 }
@@ -30,17 +30,18 @@ void Logger::loggerTask() {
 
     while (true) {
         if (currently_logging_) {
-            Serial.printf("%lu, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f\n",
+            Serial.printf("%lu, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f\n",
                 millis(),
-                ts_.getTorqueX(),
+                ts_.getForceY(),
                 ts_.getTorqueZ(),   
                 ts_.getThrust(),
-                ts_.getTorqueXSetpoint(),
-                ts_.getTorqueYSetpoint(),
+                ts_.getBladeAngleX(),
+                ts_.getBladeAngleY(),
                 ts_.getTorqueZSetpoint(),
                 ts_.getThrustSetpoint(),
                 ts_.getAmpCutIn(),
-                ts_.getPhaseLag()
+                ts_.getPhaseLag(),
+                ts_.getAngularVelocity()
             );
         }
 

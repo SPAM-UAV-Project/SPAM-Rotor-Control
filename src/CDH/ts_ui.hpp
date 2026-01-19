@@ -11,8 +11,8 @@ namespace CDH {
 
 struct RoutineStep {
     float thrust_setpoint;
-    float torque_x_setpoint;
-    float torque_y_setpoint;
+    float B_x;
+    float B_y;
     float torque_z_setpoint;
     float phase_lag;
     float amp_cut_in;
@@ -21,10 +21,10 @@ struct RoutineStep {
 
 struct DataPoint {
     uint32_t timestamp;
-    float torque_x;
+    float force_x;
     float torque_z;
     float thrust;
-    float torque_x_sp;
+    float B_x_sp;
     float thrust_sp;
 };
 
@@ -52,8 +52,8 @@ public:
     bool isCalibrating() const { return calibrating; }
     bool isRoutineRunning() const { return routineRunning; }
     float getCurrentThrustSetpoint() const { return currentThrustSp; }
-    float getCurrentTorqueXSetpoint() const { return currentTorqueXSp; }
-    float getCurrentTorqueYSetpoint() const { return currentTorqueYSp; }
+    float getCurrentBladeAngleX() const { return currentBladeAngleX; }
+    float getCurrentBladeAngleY() const { return currentBladeAngleY; }
     float getCurrentTorqueZSetpoint() const { return currentTorqueZSp; }
     float getCurrentPhaseLag() const { return currentPhaseLag; }
     float getCurrentAmpCutIn() const { return currentAmpCutIn; }
@@ -61,7 +61,7 @@ public:
     void setCalibrationStep(uint8_t step) { calibrationStep = step; }
     void setCalibrationComplete() { calibrating = false; calibrationStep = 0; }
 
-    static constexpr size_t MAX_ROUTINE_STEPS = 32;
+    static constexpr size_t MAX_ROUTINE_STEPS = 500;
     static constexpr size_t DATA_BUFFER_SIZE = 200;
 
 private:
@@ -79,8 +79,8 @@ private:
     uint32_t stepStartTime = 0;
     
     float currentThrustSp = 0;
-    float currentTorqueXSp = 0;
-    float currentTorqueYSp = 0;
+    float currentBladeAngleX = 0;
+    float currentBladeAngleY = 0;
     float currentTorqueZSp = 0;
     float currentPhaseLag = 0;
     float currentAmpCutIn = 0;

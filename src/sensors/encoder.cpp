@@ -55,7 +55,7 @@ namespace sensors::encoder
         Serial.println("[Encoder]: Setting up timer");
         encoderTimer = timerBegin(1000000); // 1 MHz timer
         timerAttachInterrupt(encoderTimer, &onEncoderTimer);
-        timerAlarm(encoderTimer, 1000, true, 0); // 1000 Hz alarm, auto-reload
+        timerAlarm(encoderTimer, 500, true, 0); // 2000 Hz alarm, auto-reload
         Serial.println("[Encoder]: Encoder initialized.");
     }
 
@@ -70,6 +70,10 @@ namespace sensors::encoder
         ASconf.fth = 0b000;
         magEnc.setConf(ASconf); 
         magEnc.closeTransactions = false;
+        //
+        float last_angle = 0.0;
+        float last_time = micros();
+        float current_time = 0.0;
 
         // test single read
         AS5600Conf regs = magEnc.readConf();
@@ -78,8 +82,23 @@ namespace sensors::encoder
         while(1){
             ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
+            current_time = micros();
             float angle_rad = magEnc.readRawAngle() * AS5600_RAW_TO_RAD;
             enc_angle_rad.store(angle_rad, std::memory_order_relaxed);
+            
+            // compute angular velocity
+            float delta_time_s = (current_time - last_time) / 1000000.0f;
+            float delta_angle = angle_rad - last_angle;
+            if (delta_angle > M_PI) {
+                delta_angle -= 2.0f * M_PI;
+            } else if (delta_angle < -M_PI) {
+                delta_angle += 2.0f * M_PI;
+            }
+
+            enc_angular_velocity_rad_s.store(delta_angle / delta_time_s, std::memory_order_relaxed);
+            
+            last_angle = angle_rad;
+            last_time = current_time;
 
 #ifdef LOG_ENCODER
             log_buffer[log_index] = angle_rad;

@@ -74,8 +74,8 @@ void ThrustStandUI::handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
     else if (strcmp(cmd, "disarm") == 0) {
         routineRunning = false;
         currentThrustSp = 0;
-        currentTorqueXSp = 0;
-        currentTorqueYSp = 0;
+        currentBladeAngleX = 0;
+        currentBladeAngleY = 0;
         currentTorqueZSp = 0;
         currentPhaseLag = 0;
         currentAmpCutIn = 0;
@@ -84,8 +84,8 @@ void ThrustStandUI::handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
     else if (strcmp(cmd, "manual") == 0) {
         if (!routineRunning) {
             currentThrustSp = doc["thrust"] | 0.0f;
-            currentTorqueXSp = doc["torque_x"] | 0.0f;
-            currentTorqueYSp = doc["torque_y"] | 0.0f;
+            currentBladeAngleX = doc["B_x"] | 0.0f;
+            currentBladeAngleY = doc["B_y"] | 0.0f;
             currentTorqueZSp = doc["torque_z"] | 0.0f;
             currentPhaseLag = doc["phase_lag"] | 0.0f;
             currentAmpCutIn = doc["amp_cut_in"] | 0.0f;
@@ -105,8 +105,8 @@ void ThrustStandUI::handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
             currentRoutineStep = 0;
             stepStartTime = millis();
             currentThrustSp = routine[0].thrust_setpoint;
-            currentTorqueXSp = routine[0].torque_x_setpoint;
-            currentTorqueYSp = routine[0].torque_y_setpoint;
+            currentBladeAngleX = routine[0].B_x;
+            currentBladeAngleY = routine[0].B_y;
             currentTorqueZSp = routine[0].torque_z_setpoint;
             currentPhaseLag = routine[0].phase_lag;
             currentAmpCutIn = routine[0].amp_cut_in;
@@ -115,8 +115,8 @@ void ThrustStandUI::handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
     else if (strcmp(cmd, "stop_routine") == 0) {
         routineRunning = false;
         currentThrustSp = 0;
-        currentTorqueXSp = 0;
-        currentTorqueYSp = 0;
+        currentBladeAngleX = 0;
+        currentBladeAngleY = 0;
         currentTorqueZSp = 0;
         currentPhaseLag = 0;
         currentAmpCutIn = 0;
@@ -127,8 +127,8 @@ void ThrustStandUI::handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
         for (JsonObject step : steps) {
             if (routineStepCount >= MAX_ROUTINE_STEPS) break;
             routine[routineStepCount].thrust_setpoint = step["thrust"] | 0.0f;
-            routine[routineStepCount].torque_x_setpoint = step["torque_x"] | 0.0f;
-            routine[routineStepCount].torque_y_setpoint = step["torque_y"] | 0.0f;
+            routine[routineStepCount].B_x = step["B_x"] | 0.0f;
+            routine[routineStepCount].B_y = step["B_y"] | 0.0f;
             routine[routineStepCount].torque_z_setpoint = step["torque_z"] | 0.0f;
             routine[routineStepCount].phase_lag = step["phase_lag"] | 0.0f;
             routine[routineStepCount].amp_cut_in = step["amp_cut_in"] | 0.0f;
@@ -145,10 +145,10 @@ void ThrustStandUI::update() {
         lastSampleTime = millis();
         
         dataBuffer[dataIndex].timestamp = millis();
-        dataBuffer[dataIndex].torque_x = thrustStand.getTorqueX();
+        dataBuffer[dataIndex].force_x = thrustStand.getForceY();
         dataBuffer[dataIndex].torque_z = thrustStand.getTorqueZ();
         dataBuffer[dataIndex].thrust = thrustStand.getThrust();
-        dataBuffer[dataIndex].torque_x_sp = currentTorqueXSp;
+        dataBuffer[dataIndex].B_x_sp = currentBladeAngleX;
         dataBuffer[dataIndex].thrust_sp = currentThrustSp;
         dataIndex = (dataIndex + 1) % DATA_BUFFER_SIZE;
         
@@ -162,8 +162,8 @@ void ThrustStandUI::updateRoutine() {
     if (currentRoutineStep >= routineStepCount) {
         routineRunning = false;
         currentThrustSp = 0;
-        currentTorqueXSp = 0;
-        currentTorqueYSp = 0;
+        currentBladeAngleX = 0;
+        currentBladeAngleY = 0;
         currentTorqueZSp = 0;
         currentPhaseLag = 0;
         currentAmpCutIn = 0;
@@ -175,8 +175,8 @@ void ThrustStandUI::updateRoutine() {
         if (currentRoutineStep < routineStepCount) {
             stepStartTime = millis();
             currentThrustSp = routine[currentRoutineStep].thrust_setpoint;
-            currentTorqueXSp = routine[currentRoutineStep].torque_x_setpoint;
-            currentTorqueYSp = routine[currentRoutineStep].torque_y_setpoint;
+            currentBladeAngleX = routine[currentRoutineStep].B_x;
+            currentBladeAngleY = routine[currentRoutineStep].B_y;
             currentTorqueZSp = routine[currentRoutineStep].torque_z_setpoint;
             currentPhaseLag = routine[currentRoutineStep].phase_lag;
             currentAmpCutIn = routine[currentRoutineStep].amp_cut_in;
@@ -197,10 +197,10 @@ void ThrustStandUI::sendDataUpdate() {
     
     JsonDocument doc;
     doc["t"] = millis();
-    doc["tx"] = thrustStand.getTorqueX();
+    doc["fy"] = thrustStand.getForceY();
     doc["tz"] = thrustStand.getTorqueZ();
     doc["th"] = thrustStand.getThrust();
-    doc["tx_sp"] = currentTorqueXSp;
+    doc["B_x_sp"] = currentBladeAngleX;
     doc["th_sp"] = currentThrustSp;
     doc["cal"] = calibrating;
     doc["cal_step"] = calibrationStep;

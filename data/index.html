@@ -281,8 +281,8 @@
                         <div class="reading-label">Thrust (N)</div>
                     </div>
                     <div class="reading">
-                        <div class="reading-value" id="torqueXVal">--</div>
-                        <div class="reading-label">Torque X (Nm)</div>
+                        <div class="reading-value" id="forceYVal">--</div>
+                        <div class="reading-label">Force Y (N)</div>
                     </div>
                     <div class="reading">
                         <div class="reading-value" id="torqueZVal">--</div>
@@ -296,27 +296,27 @@
                 <div class="slider-group">
                     <div class="slider-row">
                         <span class="slider-label">Thrust</span>
-                        <input type="range" class="slider" id="thrustSlider" min="0" max="1" step="0.01" value="0"
+                        <input type="range" class="slider" id="thrustSlider" min="0" max="1" step="0.001" value="0"
                             disabled>
-                        <span class="slider-value" id="thrustSliderVal">0.00 N</span>
+                        <span class="slider-value" id="thrustSliderVal">0%</span>
                     </div>
                     <div class="slider-row">
-                        <span class="slider-label">Torque X</span>
-                        <input type="range" class="slider" id="torqueSlider" min="-0.5" max="0.5" step="0.01" value="0"
+                        <span class="slider-label">B_x</span>
+                        <input type="range" class="slider" id="bladeXSlider" min="-0.5" max="0.5" step="0.001" value="0"
                             disabled>
-                        <span class="slider-value" id="torqueSliderVal">0.00 Nm</span>
+                        <span class="slider-value" id="bladeXSliderVal">0.000</span>
                     </div>
                     <div class="slider-row">
-                        <span class="slider-label">Torque Y</span>
-                        <input type="range" class="slider" id="torqueYSlider" min="-0.5" max="0.5" step="0.01" value="0"
+                        <span class="slider-label">B_y</span>
+                        <input type="range" class="slider" id="bladeYSlider" min="-0.5" max="0.5" step="0.001" value="0"
                             disabled>
-                        <span class="slider-value" id="torqueYSliderVal">0.00 Nm</span>
+                        <span class="slider-value" id="bladeYSliderVal">0.000</span>
                     </div>
                     <div class="slider-row">
                         <span class="slider-label">Torque Z</span>
-                        <input type="range" class="slider" id="torqueZSlider" min="-0.5" max="0.5" step="0.01" value="0"
+                        <input type="range" class="slider" id="torqueZSlider" min="-0.5" max="0.5" step="0.001" value="0"
                             disabled>
-                        <span class="slider-value" id="torqueZSliderVal">0.00 Nm</span>
+                        <span class="slider-value" id="torqueZSliderVal">0.000</span>
                     </div>
                     <div class="slider-row">
                         <span class="slider-label">Phase Lag</span>
@@ -326,9 +326,9 @@
                     </div>
                     <div class="slider-row">
                         <span class="slider-label">Amp Cut-In</span>
-                        <input type="range" class="slider" id="ampCutInSlider" min="0" max="1" step="0.01" value="0"
+                        <input type="range" class="slider" id="ampCutInSlider" min="0" max="0.5" step="0.001" value="0"
                             disabled>
-                        <span class="slider-value" id="ampCutInSliderVal">0.00</span>
+                        <span class="slider-value" id="ampCutInSliderVal">0.000</span>
                     </div>
                 </div>
                 <div class="checkbox-row">
@@ -339,7 +339,7 @@
             <div class="card">
                 <h2>TEST ROUTINE</h2>
                 <span style="color:var(--muted);font-size:0.7rem;display:block;margin-bottom:0.5rem">Format:
-                    thrust,torque_x,torque_y,torque_z,phase_lag,amp_cut_in,duration_ms</span>
+                    thrust,B_x,B_y,torque_z,phase_lag,amp_cut_in,duration_ms</span>
                 <textarea id="routineInput" placeholder="0.1,0.0,0.0,0.0,0,0,2000
 0.2,0.05,0.0,0.0,10,0.1,3000
 0.3,0.1,0.0,0.0,15,0.2,2000
@@ -358,14 +358,14 @@
     <script>
         let ws, connected = false, armed = false, running = false;
         const maxPoints = 100;
-        const data = { t: [], th: [], tx: [], tz: [], th_sp: [], tx_sp: [] };
+        const data = { t: [], th: [], fy: [], tz: [] };
         let ctx;
 
         function updateUI() {
             document.getElementById('armCheck').disabled = !connected;
             document.getElementById('thrustSlider').disabled = !armed || running;
-            document.getElementById('torqueSlider').disabled = !armed || running;
-            document.getElementById('torqueYSlider').disabled = !armed || running;
+            document.getElementById('bladeXSlider').disabled = !armed || running;
+            document.getElementById('bladeYSlider').disabled = !armed || running;
             document.getElementById('torqueZSlider').disabled = !armed || running;
             document.getElementById('phaseLagSlider').disabled = !armed || running;
             document.getElementById('ampCutInSlider').disabled = !armed || running;
@@ -389,14 +389,14 @@
                 document.getElementById('statusText').textContent = 'Disconnected';
                 document.getElementById('armCheck').checked = false;
                 document.getElementById('thrustSlider').value = 0;
-                document.getElementById('torqueSlider').value = 0;
-                document.getElementById('torqueYSlider').value = 0;
+                document.getElementById('bladeXSlider').value = 0;
+                document.getElementById('bladeYSlider').value = 0;
                 document.getElementById('torqueZSlider').value = 0;
                 document.getElementById('phaseLagSlider').value = 0;
                 document.getElementById('ampCutInSlider').value = 0;
                 document.getElementById('thrustSliderVal').textContent = '0.00 N';
-                document.getElementById('torqueSliderVal').textContent = '0.00 Nm';
-                document.getElementById('torqueYSliderVal').textContent = '0.00 Nm';
+                document.getElementById('bladeXSliderVal').textContent = '0.000';
+                document.getElementById('bladeYSliderVal').textContent = '0.000';
                 document.getElementById('torqueZSliderVal').textContent = '0.00 Nm';
                 document.getElementById('phaseLagSliderVal').textContent = '0°';
                 document.getElementById('ampCutInSliderVal').textContent = '0.00';
@@ -406,13 +406,13 @@
             ws.onmessage = (e) => {
                 const d = JSON.parse(e.data);
                 document.getElementById('thrustVal').textContent = d.th.toFixed(3);
-                document.getElementById('torqueXVal').textContent = d.tx.toFixed(3);
+                document.getElementById('forceYVal').textContent = d.fy.toFixed(3);
                 document.getElementById('torqueZVal').textContent = d.tz.toFixed(3);
 
                 running = d.running;
                 updateUI();
 
-                data.t.push(d.t / 1000); data.th.push(d.th); data.tx.push(d.tx); data.tz.push(d.tz); data.th_sp.push(d.th_sp); data.tx_sp.push(d.tx_sp);
+                data.t.push(d.t / 1000); data.th.push(d.th); data.fy.push(d.fy); data.tz.push(d.tz);
                 if (data.t.length > maxPoints) { Object.keys(data).forEach(k => data[k].shift()) }
                 drawChart();
             };
@@ -427,7 +427,7 @@
 
             const pad = 40, gw = w - pad * 2, gh = h - pad * 2;
             const tMin = data.t[0], tMax = data.t[data.t.length - 1];
-            const allVals = [...data.th, ...data.tx, ...data.tz, ...data.th_sp, ...data.tx_sp];
+            const allVals = [...data.th, ...data.fy, ...data.tz];
             let vMin = Math.min(...allVals), vMax = Math.max(...allVals);
             if (vMax - vMin < 0.1) { vMin -= 0.1; vMax += 0.1 }
 
@@ -443,14 +443,12 @@
                 ctx.stroke(); ctx.setLineDash([])
             };
 
-            plot(data.th_sp, 'rgba(34,197,94,0.5)', [5, 5]);
-            plot(data.tx_sp, 'rgba(99,102,241,0.5)', [5, 5]);
             plot(data.th, '#22c55e');
-            plot(data.tx, '#6366f1');
+            plot(data.fy, '#6366f1');
             plot(data.tz, '#f59e0b');
 
             ctx.fillStyle = '#888'; ctx.font = '11px system-ui';
-            ctx.fillText('Thrust', w - 80, 18); ctx.fillText('Torque X', w - 80, 32); ctx.fillText('Torque Z', w - 80, 46);
+            ctx.fillText('Thrust', w - 80, 18); ctx.fillText('Force Y', w - 80, 32); ctx.fillText('Torque Z', w - 80, 46);
             ctx.fillStyle = '#22c55e'; ctx.fillRect(w - 95, 11, 10, 10);
             ctx.fillStyle = '#6366f1'; ctx.fillRect(w - 95, 25, 10, 10);
             ctx.fillStyle = '#f59e0b'; ctx.fillRect(w - 95, 39, 10, 10);
@@ -463,15 +461,15 @@
             }
             if (!armed) {
                 document.getElementById('thrustSlider').value = 0;
-                document.getElementById('torqueSlider').value = 0;
-                document.getElementById('torqueYSlider').value = 0;
+                document.getElementById('bladeXSlider').value = 0;
+                document.getElementById('bladeYSlider').value = 0;
                 document.getElementById('torqueZSlider').value = 0;
                 document.getElementById('phaseLagSlider').value = 0;
                 document.getElementById('ampCutInSlider').value = 0;
-                document.getElementById('thrustSliderVal').textContent = '0.00 N';
-                document.getElementById('torqueSliderVal').textContent = '0.00 Nm';
-                document.getElementById('torqueYSliderVal').textContent = '0.00 Nm';
-                document.getElementById('torqueZSliderVal').textContent = '0.00 Nm';
+                document.getElementById('thrustSliderVal').textContent = '0%';
+                document.getElementById('bladeXSliderVal').textContent = '0.000';
+                document.getElementById('bladeYSliderVal').textContent = '0.000';
+                document.getElementById('torqueZSliderVal').textContent = '0.00';
                 document.getElementById('phaseLagSliderVal').textContent = '0°';
                 document.getElementById('ampCutInSliderVal').textContent = '0.00';
             }
@@ -483,8 +481,8 @@
                 ws.send(JSON.stringify({
                     cmd: 'manual',
                     thrust: parseFloat(document.getElementById('thrustSlider').value),
-                    torque_x: parseFloat(document.getElementById('torqueSlider').value),
-                    torque_y: parseFloat(document.getElementById('torqueYSlider').value),
+                    B_x: parseFloat(document.getElementById('bladeXSlider').value),
+                    B_y: parseFloat(document.getElementById('bladeYSlider').value),
                     torque_z: parseFloat(document.getElementById('torqueZSlider').value),
                     phase_lag: parseFloat(document.getElementById('phaseLagSlider').value),
                     amp_cut_in: parseFloat(document.getElementById('ampCutInSlider').value)
@@ -494,25 +492,25 @@
 
         document.getElementById('thrustSlider').oninput = (e) => {
             const v = parseFloat(e.target.value);
-            document.getElementById('thrustSliderVal').textContent = v.toFixed(2) + ' N';
+            document.getElementById('thrustSliderVal').textContent = Math.round(v * 100) + '%';
             sendManualUpdate();
         };
 
-        document.getElementById('torqueSlider').oninput = (e) => {
+        document.getElementById('bladeXSlider').oninput = (e) => {
             const v = parseFloat(e.target.value);
-            document.getElementById('torqueSliderVal').textContent = v.toFixed(2) + ' Nm';
+            document.getElementById('bladeXSliderVal').textContent = v.toFixed(3);
             sendManualUpdate();
         };
 
-        document.getElementById('torqueYSlider').oninput = (e) => {
+        document.getElementById('bladeYSlider').oninput = (e) => {
             const v = parseFloat(e.target.value);
-            document.getElementById('torqueYSliderVal').textContent = v.toFixed(2) + ' Nm';
+            document.getElementById('bladeYSliderVal').textContent = v.toFixed(3);
             sendManualUpdate();
         };
 
         document.getElementById('torqueZSlider').oninput = (e) => {
             const v = parseFloat(e.target.value);
-            document.getElementById('torqueZSliderVal').textContent = v.toFixed(2) + ' Nm';
+            document.getElementById('torqueZSliderVal').textContent = v.toFixed(3);
             sendManualUpdate();
         };
 
@@ -524,7 +522,7 @@
 
         document.getElementById('ampCutInSlider').oninput = (e) => {
             const v = parseFloat(e.target.value);
-            document.getElementById('ampCutInSliderVal').textContent = v.toFixed(2);
+            document.getElementById('ampCutInSliderVal').textContent = v.toFixed(3);
             sendManualUpdate();
         };
 
@@ -535,8 +533,8 @@
             if (!connected) return;
             const lines = document.getElementById('routineInput').value.trim().split('\n');
             const steps = lines.map(l => {
-                const [thrust, torque_x, torque_y, torque_z, phase_lag, amp_cut_in, duration] = l.split(',').map(Number);
-                return { thrust, torque_x, torque_y, torque_z, phase_lag, amp_cut_in, duration };
+                const [thrust, B_x, B_y, torque_z, phase_lag, amp_cut_in, duration] = l.split(',').map(Number);
+                return { thrust, B_x, B_y, torque_z, phase_lag, amp_cut_in, duration };
             }).filter(s => !isNaN(s.thrust));
             ws.send(JSON.stringify({ cmd: 'upload_routine', steps }));
         };
@@ -549,6 +547,14 @@
             reader.onload = (ev) => { document.getElementById('routineInput').value = ev.target.result.trim() };
             reader.readAsText(file)
         };
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.code === 'Space' || e.code === 'Enter') && armed && !e.target.matches('textarea')) {
+                e.preventDefault();
+                document.getElementById('armCheck').checked = false;
+                document.getElementById('armCheck').dispatchEvent(new Event('change'));
+            }
+        });
     </script>
 </body>
 

@@ -9,7 +9,7 @@
 
 namespace control::rotor
 {
-    DShotRMT motor1(MOTOR1_PIN, DSHOT150); // 1 motor for testing purposes
+    DShotRMT motor1(MOTOR1_PIN, DSHOT300); // 1 motor for testing purposes
     static float control_input[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // roll, pitch, yaw, thrust
     static float rotor_coefficients[2] = {0.0f, 0.0f}; // phase lag, amplitude cut-in
     static SemaphoreHandle_t control_mutex = xSemaphoreCreateMutex();
@@ -31,6 +31,7 @@ namespace control::rotor
     void initRotor()
     {
         motor1.begin();
+        motor1.setMotorSpinDirection(false);
         motor1.sendThrottle(0);
 
         Serial.println("[Rotor Controller]: Initializing rotor control...");
@@ -44,14 +45,14 @@ namespace control::rotor
         Serial.println("[Rotor Controller]: Setting up rotor control timer...");
         rotorControlTimer = timerBegin(1000000); // 1 MHz timer
         timerAttachInterrupt(rotorControlTimer, &onRotorControlTimer);
-        timerAlarm(rotorControlTimer, 1000, true, 0); // 1000 Hz alarm, auto-reload
+        timerAlarm(rotorControlTimer, 500, true, 0); // 2000 Hz alarm, auto-reload
         Serial.println("[Rotor Controller]: Rotor control initialized.");
     }
 
     void rotorControlTask(void *pvParameters)
     {
         float amplitude = 0.0f;
-        float phase = 0.0f;
+        float phase = 0.0f; // changed from SYSID -> this produced max Y torque in testing
         float local_control_input[4] = {0.0f, 0.0f, 0.0f, 0.0f};
         float phase_lag = 0.0f;
         float amp_cut_in = 0.0f;
@@ -78,10 +79,13 @@ namespace control::rotor
                 phase = atan2(local_control_input[1], local_control_input[0]);
 
                 // convert to an oscillatory throttle response
-                output_throttle_fraction = ((0.5f * local_control_input[3]) - local_control_input[2]) + amplitude * cos(sensors::encoder::enc_angle_rad.load() - phase - phase_lag);
+                output_throttle_fraction = ((local_control_input[3]) - local_control_input[2]) + amplitude * cos(sensors::encoder::enc_angle_rad.load() - phase - phase_lag);
+                // clamp output from arming throttle to 100%
+                // print output and encoder
+                //output_throttle_fraction = std::max(ARMING_THROTTLE, std::min(1.0f, output_throttle_fraction));
             } else {
                 // no pitch or roll command, just set throttle directly
-                output_throttle_fraction = ((0.5f * local_control_input[3]) - local_control_input[2]);
+                output_throttle_fraction = ((local_control_input[3]) - local_control_input[2]);
             }
             sendToDshot(output_throttle_fraction);
         }
@@ -102,13 +106,13 @@ namespace control::rotor
     void sendToDshot(float throttle_fraction)
     { 
         if (throttle_fraction <= 0.0f) {
-            
+            motor1.sendThrottle(0);
             return;
         }
         // ensure throttle_fraction is within [0.0, 1.0]
         throttle_fraction = std::max(0.0f, std::min(1.0f, throttle_fraction));
         // convert to DShot value (48 to 2047 for throttle)
-        uint16_t dshot_value = static_cast<uint16_t>(48 + throttle_fraction * (2047 - 48));
+        uint16_t dshot_value = static_cast<uint16_t>((48 + throttle_fraction * (2047 - 48)));
         motor1.sendThrottle(dshot_value);
     }
 }

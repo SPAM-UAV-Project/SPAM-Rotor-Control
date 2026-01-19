@@ -76,15 +76,16 @@ void loop()
         case State::MOTORS_ACTIVE:
             tsLogger.start();
             ts.setThrustSetpoint(tsUI.getCurrentThrustSetpoint());
-            ts.setTorqueXSetpoint(tsUI.getCurrentTorqueXSetpoint());
-            ts.setTorqueYSetpoint(tsUI.getCurrentTorqueYSetpoint());
+            ts.setBladeAngleX(tsUI.getCurrentBladeAngleX());
+            ts.setBladeAngleY(tsUI.getCurrentBladeAngleY());
             ts.setTorqueZSetpoint(tsUI.getCurrentTorqueZSetpoint());
             ts.setAmpCutIn(tsUI.getCurrentAmpCutIn());
             ts.setPhaseLag(tsUI.getCurrentPhaseLag());
+            ts.setAngularVelocity(sensors::encoder::enc_angular_velocity_rad_s.load());
 
             control::rotor::setControlInputs(
-                ts.getTorqueXSetpoint(),
-                ts.getTorqueYSetpoint(),
+                ts.getBladeAngleX(),
+                ts.getBladeAngleY(),
                 ts.getTorqueZSetpoint(),
                 ts.getThrustSetpoint(),
                 ts.getPhaseLag(),
@@ -92,6 +93,6 @@ void loop()
             );
             break;
     }
-    
+
     delay(10);
 }

@@ -1,144 +1,278 @@
+/**
+ *
+ * HX711 library for Arduino
+ * https://github.com/bogde/HX711
+ *
+ * MIT License
+ * (c) 2018 Bogdan Necula
+ *
+**/
 #include <Arduino.h>
-#include "hx711.hpp"
+#include "HX711.h"
 
-NBHX711::NBHX711(byte data, byte clock, byte depth, byte gain) : 
-	dataPin(data),
-	clockPin(clock),
-	offset(0),
-	scaleFactor(1.0),
-	histSize(0),
-	histBuffer(NULL),
-	curr(0)
-{
-	histSize = 3 * min(max(static_cast<int>(depth), 6), 255/3);
-	histBuffer = new byte[histSize];
-	if (!histBuffer) {
-		histSize = 0;
-	} else {
-		memset(histBuffer, 0, histSize);
+// TEENSYDUINO has a port of Dean Camera's ATOMIC_BLOCK macros for AVR to ARM Cortex M3.
+#define HAS_ATOMIC_BLOCK (defined(ARDUINO_ARCH_AVR) || defined(TEENSYDUINO))
+
+// Whether we are running on either the ESP8266 or the ESP32.
+#define ARCH_ESPRESSIF (defined(ARDUINO_ARCH_ESP8266) || defined(ARDUINO_ARCH_ESP32))
+
+// Whether we are actually running on FreeRTOS.
+#define IS_FREE_RTOS defined(ARDUINO_ARCH_ESP32)
+
+// Define macro designating whether we're running on a reasonable
+// fast CPU and so should slow down sampling from GPIO.
+#define FAST_CPU \
+    ( \
+    ARCH_ESPRESSIF || \
+    defined(ARDUINO_ARCH_SAM)     || defined(ARDUINO_ARCH_SAMD) || \
+    defined(ARDUINO_ARCH_STM32)   || defined(TEENSYDUINO) \
+    )
+
+#if HAS_ATOMIC_BLOCK
+// Acquire AVR-specific ATOMIC_BLOCK(ATOMIC_RESTORESTATE) macro.
+#include <util/atomic.h>
+#endif
+
+#if FAST_CPU
+// Make shiftIn() be aware of clockspeed for
+// faster CPUs like ESP32, Teensy 3.x and friends.
+// See also:
+// - https://github.com/bogde/HX711/issues/75
+// - https://github.com/arduino/Arduino/issues/6561
+// - https://community.hiveeyes.org/t/using-bogdans-canonical-hx711-library-on-the-esp32/539
+uint8_t shiftInSlow(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder) {
+    uint8_t value = 0;
+    uint8_t i;
+
+    for(i = 0; i < 8; ++i) {
+        digitalWrite(clockPin, HIGH);
+        delayMicroseconds(1);
+        if(bitOrder == LSBFIRST)
+            value |= digitalRead(dataPin) << i;
+        else
+            value |= digitalRead(dataPin) << (7 - i);
+        digitalWrite(clockPin, LOW);
+        delayMicroseconds(1);
+    }
+    return value;
+}
+#define SHIFTIN_WITH_SPEED_SUPPORT(data,clock,order) shiftInSlow(data,clock,order)
+#else
+#define SHIFTIN_WITH_SPEED_SUPPORT(data,clock,order) shiftIn(data,clock,order)
+#endif
+
+#if ARCH_ESPRESSIF
+// ESP8266 doesn't read values between 0x20000 and 0x30000 when DOUT is pulled up.
+#define DOUT_MODE INPUT
+#else
+#define DOUT_MODE INPUT_PULLUP
+#endif
+
+
+HX711::HX711() {
+}
+
+HX711::~HX711() {
+}
+
+void HX711::begin(byte dout, byte pd_sck, byte gain) {
+	PD_SCK = pd_sck;
+	DOUT = dout;
+
+	pinMode(PD_SCK, OUTPUT);
+	pinMode(DOUT, DOUT_MODE);
+
+	set_gain(gain);
+}
+
+bool HX711::is_ready() {
+	return digitalRead(DOUT) == LOW;
+}
+
+void HX711::set_gain(byte gain) {
+	switch (gain) {
+		case 128:		// channel A, gain factor 128
+			GAIN = 1;
+			break;
+		case 64:		// channel A, gain factor 64
+			GAIN = 3;
+			break;
+		case 32:		// channel B, gain factor 32
+			GAIN = 2;
+			break;
 	}
-	setGainAndChannel(gain);
-	powerUp();
+
 }
 
-NBHX711::~NBHX711() {
-	delete[] histBuffer;
-	pinMode(clockPin, INPUT);
-}
+long HX711::read() {
 
-byte NBHX711::getHistSize() {
-	return histSize / 3;
-}	
+	// Wait for the chip to become ready.
+	wait_ready();
 
-void NBHX711::begin() {
-	pinMode(dataPin, INPUT);
-	pinMode(clockPin, OUTPUT);
-}
-
-bool NBHX711::isReady() {
-	return digitalRead(dataPin) == LOW;
-}
-
-void NBHX711::setGainAndChannel(byte gain) {
-	gainCode = gain;
-}
-
-long NBHX711::getRaw() {
-	return cvt24(histBuffer + curr);
-}
-
-void NBHX711::putData(byte* storeTo) {
-	// pulse the clock pin 24 times to read the data
-	storeTo[2] = shiftIn(dataPin, clockPin, MSBFIRST);
-	storeTo[1] = shiftIn(dataPin, clockPin, MSBFIRST);
-	storeTo[0] = shiftIn(dataPin, clockPin, MSBFIRST);
-	// set the channel and the gain factor for the next reading using the clock pin
-	for (byte i = 0; i < gainCode; i++) {
-		digitalWrite(clockPin, HIGH);
-		digitalWrite(clockPin, LOW);
-	}
-}
-
-long NBHX711::cvt24(byte* from) {
+	// Define structures for reading data into.
+	unsigned long value = 0;
+	uint8_t data[3] = { 0 };
 	uint8_t filler = 0x00;
-	if (from[2] & 0x80) {
-		filler--;
+
+	// Protect the read sequence from system interrupts.  If an interrupt occurs during
+	// the time the PD_SCK signal is high it will stretch the length of the clock pulse.
+	// If the total pulse time exceeds 60 uSec this will cause the HX711 to enter
+	// power down mode during the middle of the read sequence.  While the device will
+	// wake up when PD_SCK goes low again, the reset starts a new conversion cycle which
+	// forces DOUT high until that cycle is completed.
+	//
+	// The result is that all subsequent bits read by shiftIn() will read back as 1,
+	// corrupting the value returned by read().  The ATOMIC_BLOCK macro disables
+	// interrupts during the sequence and then restores the interrupt mask to its previous
+	// state after the sequence completes, insuring that the entire read-and-gain-set
+	// sequence is not interrupted.  The macro has a few minor advantages over bracketing
+	// the sequence between `noInterrupts()` and `interrupts()` calls.
+	#if HAS_ATOMIC_BLOCK
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+
+	#elif IS_FREE_RTOS
+	// Begin of critical section.
+	// Critical sections are used as a valid protection method
+	// against simultaneous access in vanilla FreeRTOS.
+	// Disable the scheduler and call portDISABLE_INTERRUPTS. This prevents
+	// context switches and servicing of ISRs during a critical section.
+	portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+	portENTER_CRITICAL(&mux);
+
+	#else
+	// Disable interrupts.
+	noInterrupts();
+	#endif
+
+	// Pulse the clock pin 24 times to read the data.
+	data[2] = SHIFTIN_WITH_SPEED_SUPPORT(DOUT, PD_SCK, MSBFIRST);
+	data[1] = SHIFTIN_WITH_SPEED_SUPPORT(DOUT, PD_SCK, MSBFIRST);
+	data[0] = SHIFTIN_WITH_SPEED_SUPPORT(DOUT, PD_SCK, MSBFIRST);
+
+	// Set the channel and the gain factor for the next reading using the clock pin.
+	for (unsigned int i = 0; i < GAIN; i++) {
+		digitalWrite(PD_SCK, HIGH);
+		#if ARCH_ESPRESSIF
+		delayMicroseconds(1);
+		#endif
+		digitalWrite(PD_SCK, LOW);
+		#if ARCH_ESPRESSIF
+		delayMicroseconds(1);
+		#endif
 	}
-	return (  static_cast<unsigned long>(filler) << 24
-			| static_cast<unsigned long>(from[2]) << 16
-			| static_cast<unsigned long>(from[1]) << 8
-			| static_cast<unsigned long>(from[0]) );
+
+	#if IS_FREE_RTOS
+	// End of critical section.
+	portEXIT_CRITICAL(&mux);
+
+	#elif HAS_ATOMIC_BLOCK
+	}
+
+	#else
+	// Enable interrupts again.
+	interrupts();
+	#endif
+
+	// Replicate the most significant bit to pad out a 32-bit signed integer
+	if (data[2] & 0x80) {
+		filler = 0xFF;
+	} else {
+		filler = 0x00;
+	}
+
+	// Construct a 32-bit signed integer
+	value = ( static_cast<unsigned long>(filler) << 24
+			| static_cast<unsigned long>(data[2]) << 16
+			| static_cast<unsigned long>(data[1]) << 8
+			| static_cast<unsigned long>(data[0]) );
+
+	return static_cast<long>(value);
 }
 
-bool NBHX711::update() {
-	bool retVal = false;
-	if (isReady()) {
-		retVal = true;
-		curr = nextIndex(curr);
-		putData(histBuffer + curr);
+void HX711::wait_ready(unsigned long delay_ms) {
+	// Wait for the chip to become ready.
+	// This is a blocking implementation and will
+	// halt the sketch until a load cell is connected.
+	while (!is_ready()) {
+		// Probably will do no harm on AVR but will feed the Watchdog Timer (WDT) on ESP.
+		// https://github.com/bogde/HX711/issues/73
+		delay(delay_ms);
 	}
-	return retVal;
 }
 
-byte NBHX711::backIndex(byte times) {
-	int index = curr - (times - 1) * 3;
-	if (index < 0) {
-		index += histSize;
+bool HX711::wait_ready_retry(int retries, unsigned long delay_ms) {
+	// Wait for the chip to become ready by
+	// retrying for a specified amount of attempts.
+	// https://github.com/bogde/HX711/issues/76
+	int count = 0;
+	while (count < retries) {
+		if (is_ready()) {
+			return true;
+		}
+		delay(delay_ms);
+		count++;
 	}
-	return index;
+	return false;
 }
 
-byte NBHX711::nextIndex(byte index) {
-	int nIndex = index + 3;
-	if (nIndex >= histSize) {
-		nIndex = 0;
+bool HX711::wait_ready_timeout(unsigned long timeout, unsigned long delay_ms) {
+	// Wait for the chip to become ready until timeout.
+	// https://github.com/bogde/HX711/pull/96
+	unsigned long millisStarted = millis();
+	while (millis() - millisStarted < timeout) {
+		if (is_ready()) {
+			return true;
+		}
+		delay(delay_ms);
 	}
-	return nIndex;	
+	return false;
 }
 
-long NBHX711::readAverage(byte times) {
+long HX711::read_average(byte times) {
 	long sum = 0;
-	byte index = backIndex(times);
 	for (byte i = 0; i < times; i++) {
-		sum += cvt24(histBuffer + index);
-		index = nextIndex(index);
+		sum += read();
+		// Probably will do no harm on AVR but will feed the Watchdog Timer (WDT) on ESP.
+		// https://github.com/bogde/HX711/issues/73
+		delay(0);
 	}
 	return sum / times;
 }
 
-long NBHX711::getValue(byte times) {
-	return readAverage(times) - offset;
+double HX711::get_value(byte times) {
+	return read_average(times) - OFFSET;
 }
 
-float NBHX711::getUnits(byte times) {
-	return getValue(times) / scaleFactor;
+float HX711::get_units(byte times) {
+	return get_value(times) / SCALE;
 }
 
-void NBHX711::tare(byte times) {
-	setOffset(readAverage(times));
+void HX711::tare(byte times) {
+	double sum = read_average(times);
+	set_offset(sum);
 }
 
-void NBHX711::setScale(float scale) {
-	scaleFactor = scale;
+void HX711::set_scale(float scale) {
+	SCALE = scale;
 }
 
-float NBHX711::getScale() {
-	return scaleFactor;
+float HX711::get_scale() {
+	return SCALE;
 }
 
-void NBHX711::setOffset(long inOffset) {
-	offset = inOffset;
+void HX711::set_offset(long offset) {
+	OFFSET = offset;
 }
 
-long NBHX711::getOffset() {
-	return offset;
+long HX711::get_offset() {
+	return OFFSET;
 }
 
-void NBHX711::powerDown() {
-	digitalWrite(clockPin, LOW);
-	digitalWrite(clockPin, HIGH);
+void HX711::power_down() {
+	digitalWrite(PD_SCK, LOW);
+	digitalWrite(PD_SCK, HIGH);
 }
 
-void NBHX711::powerUp() {
-	digitalWrite(clockPin, LOW);
+void HX711::power_up() {
+	digitalWrite(PD_SCK, LOW);
 }
