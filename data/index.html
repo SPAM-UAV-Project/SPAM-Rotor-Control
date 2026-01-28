@@ -281,8 +281,8 @@
                         <div class="reading-label">Thrust (N)</div>
                     </div>
                     <div class="reading">
-                        <div class="reading-value" id="forceYVal">--</div>
-                        <div class="reading-label">Force Y (N)</div>
+                        <div class="reading-value" id="forceXVal">--</div>
+                        <div class="reading-label">Force X (N)</div>
                     </div>
                     <div class="reading">
                         <div class="reading-value" id="torqueZVal">--</div>
@@ -358,7 +358,7 @@
     <script>
         let ws, connected = false, armed = false, running = false;
         const maxPoints = 100;
-        const data = { t: [], th: [], fy: [], tz: [] };
+        const data = { t: [], th: [], fx: [], tz: [] };
         let ctx;
 
         function updateUI() {
@@ -406,13 +406,13 @@
             ws.onmessage = (e) => {
                 const d = JSON.parse(e.data);
                 document.getElementById('thrustVal').textContent = d.th.toFixed(3);
-                document.getElementById('forceYVal').textContent = d.fy.toFixed(3);
+                document.getElementById('forceXVal').textContent = d.fx.toFixed(3);
                 document.getElementById('torqueZVal').textContent = d.tz.toFixed(3);
 
                 running = d.running;
                 updateUI();
 
-                data.t.push(d.t / 1000); data.th.push(d.th); data.fy.push(d.fy); data.tz.push(d.tz);
+                data.t.push(d.t / 1000); data.th.push(d.th); data.fx.push(d.fx); data.tz.push(d.tz);
                 if (data.t.length > maxPoints) { Object.keys(data).forEach(k => data[k].shift()) }
                 drawChart();
             };
@@ -427,7 +427,7 @@
 
             const pad = 40, gw = w - pad * 2, gh = h - pad * 2;
             const tMin = data.t[0], tMax = data.t[data.t.length - 1];
-            const allVals = [...data.th, ...data.fy, ...data.tz];
+            const allVals = [...data.th, ...data.fx, ...data.tz];
             let vMin = Math.min(...allVals), vMax = Math.max(...allVals);
             if (vMax - vMin < 0.1) { vMin -= 0.1; vMax += 0.1 }
 
@@ -444,11 +444,11 @@
             };
 
             plot(data.th, '#22c55e');
-            plot(data.fy, '#6366f1');
+            plot(data.fx, '#6366f1');
             plot(data.tz, '#f59e0b');
 
             ctx.fillStyle = '#888'; ctx.font = '11px system-ui';
-            ctx.fillText('Thrust', w - 80, 18); ctx.fillText('Force Y', w - 80, 32); ctx.fillText('Torque Z', w - 80, 46);
+            ctx.fillText('Thrust', w - 80, 18); ctx.fillText('Force X', w - 80, 32); ctx.fillText('Torque Z', w - 80, 46);
             ctx.fillStyle = '#22c55e'; ctx.fillRect(w - 95, 11, 10, 10);
             ctx.fillStyle = '#6366f1'; ctx.fillRect(w - 95, 25, 10, 10);
             ctx.fillStyle = '#f59e0b'; ctx.fillRect(w - 95, 39, 10, 10);

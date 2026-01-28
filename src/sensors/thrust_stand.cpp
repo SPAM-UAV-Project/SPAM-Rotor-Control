@@ -32,9 +32,9 @@ void ThrustStand::updateTask()
         lc_values[2] = lc_b.get_value(1);
 
         // compute force and thrust
-        torque_y = force_y = (0.5 * (lc_values[0] + lc_values[1]) * lc_calibration_factors[0]) ;
-        force_y = torque_y / x;
-        torque_z = (0.5 * (lc_values[0] - lc_values[1]) * lc_calibration_factors[1]) / l;
+        torque_y = force_x = (0.5 * (lc_values[0] + lc_values[1]) * lc_calibration_factors[0]) ;
+        force_x = torque_y / x;
+        torque_z = (0.5 * (lc_values[0] - lc_values[1]) * lc_calibration_factors[1]);
         thrust = (lc_values[2] * lc_calibration_factors[2]) - (torque_y / v);
 
         // print thrust with and without        

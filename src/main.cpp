@@ -5,6 +5,7 @@
 #include "CDH/ts_ui.hpp"
 #include "CDH/ts_logger.hpp"
 #include <Arduino.h>
+#include "sensors/imu.hpp"
 
 enum class State {
     IDLE,
@@ -33,6 +34,8 @@ void setup()
     digitalWrite(18, LOW);
 
     sensors::encoder::initEncoder();
+    delay(100);  // Let encoder I2C bus stabilize before initializing IMU
+    sensors::imu::initIMU();
     control::rotor::initRotor();
     ts.begin();
     tsLogger.begin();

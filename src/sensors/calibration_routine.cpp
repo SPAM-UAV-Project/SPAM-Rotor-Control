@@ -58,7 +58,7 @@ void ThrustStand::calibrate()
     // s_v = F_z / lc_val
     float lc_b_val = lc_b.get_value(10);
     Serial.println("lc_b value: " + String(lc_b_val));
-    lc_calibration_factors[2] = (abs(lc_b_val) < 1e-1) ? 1.0f : (calibration_weight_kg * g) / lc_b_val;
+    lc_calibration_factors[2] = (abs(lc_b_val) < 1e-1) ? 1.0f : (calibration_weight_kg * grav) / lc_b_val;
 
     // calibration Torque X load cells //
     Serial.println("Put thrust stand horizontal (motor mount sideways) clamped down. Attach calibration stick onto the mount. Press any key to continue.");
@@ -78,7 +78,7 @@ void ThrustStand::calibrate()
     Serial.println("Calibrating, wait 2 seconds");
     float avg_sum = 0.5f * (lc_fr.get_value(10) + lc_fl.get_value(10));
     Serial.println("avg_sum: " + String(avg_sum));
-    lc_calibration_factors[0] = (abs(avg_sum) < 1e-1) ? 1.0f : (-calibration_weight_kg * g * x) / avg_sum;
+    lc_calibration_factors[0] = (abs(avg_sum) < 1e-1) ? 1.0f : (-calibration_weight_kg * grav * x) / avg_sum;
 
     // calibrate Torque Z load cell //
     Serial.println("Move the calibration weight to the end of calibration stick. Press any key to continue.");
@@ -89,7 +89,7 @@ void ThrustStand::calibrate()
     Serial.println("Calibrating, wait 2 seconds");
     float avg_diff = 0.5f * (lc_fr.get_value(10) - lc_fl.get_value(10));
     Serial.println("avg_diff: " + String(avg_diff));
-    lc_calibration_factors[1] = (abs(avg_diff) < 1e-1) ? 1.0f : (calibration_weight_kg * g * l) / avg_diff;
+    lc_calibration_factors[1] = (abs(avg_diff) < 1e-1) ? 1.0f : (calibration_weight_kg * grav * l) / avg_diff;
 
     Serial.println("Take off all weights and the calibration stick. press any key to continue.");
     waitForSerialInput();

@@ -34,10 +34,11 @@ namespace sensors::encoder
     {
         magI2C.begin(PIN_ENC_SDA, PIN_ENC_SCL);
         magI2C.setClock(400000);
+        delay(100);  // Allow I2C bus to stabilize
         
         // confirm I2C is working
         magI2C.beginTransmission(I2C_ADDRESS_AS5600);
-        delay(100);
+        delay(10);
         uint8_t error = magI2C.endTransmission();
         if (error != 0) {
             Serial.println("[Encoder]: ERROR - Cannot communicate with AS5600!");
@@ -51,6 +52,9 @@ namespace sensors::encoder
 #endif
 
 
+        // Wait for encoder task to initialize
+        delay(200);
+        
         // create timer to trigger tasks
         Serial.println("[Encoder]: Setting up timer");
         encoderTimer = timerBegin(1000000); // 1 MHz timer

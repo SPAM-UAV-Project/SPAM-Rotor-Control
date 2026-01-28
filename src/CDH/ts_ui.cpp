@@ -145,7 +145,7 @@ void ThrustStandUI::update() {
         lastSampleTime = millis();
         
         dataBuffer[dataIndex].timestamp = millis();
-        dataBuffer[dataIndex].force_x = thrustStand.getForceY();
+        dataBuffer[dataIndex].force_x = thrustStand.getForceX();
         dataBuffer[dataIndex].torque_z = thrustStand.getTorqueZ();
         dataBuffer[dataIndex].thrust = thrustStand.getThrust();
         dataBuffer[dataIndex].B_x_sp = currentBladeAngleX;
@@ -197,7 +197,7 @@ void ThrustStandUI::sendDataUpdate() {
     
     JsonDocument doc;
     doc["t"] = millis();
-    doc["fy"] = thrustStand.getForceY();
+    doc["fx"] = thrustStand.getForceX();
     doc["tz"] = thrustStand.getTorqueZ();
     doc["th"] = thrustStand.getThrust();
     doc["B_x_sp"] = currentBladeAngleX;

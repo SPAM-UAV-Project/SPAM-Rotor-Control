@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "HX711.h"
 
-#define g 9.806f // m/s^2
+#define grav 9.806f // m/s^2
 
 namespace sensors
 {
@@ -19,7 +19,6 @@ public:
     void calibrate();
 
     float getForceX() { return force_x; }
-    float getForceY() { return force_y; }
     float getTorqueZ() { return torque_z; }
     float getThrust() { return thrust; }
 
@@ -55,7 +54,6 @@ private:
     HX711 lc_b;
     
     double force_x = 0.0f;
-    double force_y = 0.0f;
     double torque_z = 0.0f;
     double thrust = 0.0f;
     float thrust_sp = 0.0f;
